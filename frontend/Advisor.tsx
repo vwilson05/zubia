@@ -1,6 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Icons } from "./Icons";
 
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 style="font-size:1.05rem;font-weight:600;color:#0F766E;margin:12px 0 4px">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')
+    .replace(/^/, '<p>').replace(/$/, '</p>')
+    .replace(/<p>\s*<\/p>/g, '')
+    .replace(/<p>\s*<h/g, '<h')
+    .replace(/<\/h[234]>\s*<\/p>/g, m => m.replace('</p>', ''));
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -80,9 +95,11 @@ export default function Advisor() {
                 {msg.role === "user" ? "Y" : <Icons.Advisor />}
               </div>
               <div className="message-content">
-                {msg.content.split("\n").map((line, j) => (
-                  <p key={j}>{line}</p>
-                ))}
+                {msg.role === "user" ? (
+                  <p>{msg.content}</p>
+                ) : (
+                  <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                )}
               </div>
             </div>
           ))}

@@ -1,6 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { Icons, ScoreBadge } from "./Icons";
 
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // Headers
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 class="md-h3">$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Paragraphs (double newline)
+    .replace(/\n\n/g, '</p><p>')
+    // Single newlines within paragraphs
+    .replace(/\n/g, '<br/>')
+    // Wrap in paragraph
+    .replace(/^/, '<p>')
+    .replace(/$/, '</p>')
+    // Clean up empty paragraphs
+    .replace(/<p>\s*<\/p>/g, '')
+    .replace(/<p>\s*<h/g, '<h')
+    .replace(/<\/h[234]>\s*<\/p>/g, m => m.replace('</p>', ''));
+}
+
 export default function Compare() {
   const [listings, setListings] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -181,11 +207,7 @@ export default function Compare() {
       {comparison && (
         <div className="comparison-summary">
           <h3>AI Analysis</h3>
-          <div className="ai-summary-content">
-            {comparison.split("\n").map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </div>
+          <div className="ai-summary-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(comparison) }} />
         </div>
       )}
 
