@@ -187,33 +187,55 @@ export async function extractListingFromURL(rawUrl: string): Promise<ListingData
           } catch {}
         }
 
-        // Get rent price — check multiple locations in the Redfin response
+        // Get rent price, pet policy, deposit, lease terms from Redfin response
         let rentPrice = null;
+        let petPolicy = null;
+        let deposit = null;
+        let leaseTerms = null;
 
-        // 1. Check property history events for rental listings (most reliable)
-        const historyEvents = d.belowTheFold?.propertyHistoryInfo?.events || [];
-        for (const event of historyEvents) {
-          const price = event.price;
-          // Rental prices are typically $1K-$15K/mo, sale prices are $100K+
-          if (typeof price === "number" && price >= 500 && price <= 20000) {
-            rentPrice = price;
-            break;
+        // 1. Best source: floorPlans data has exact rent price
+        const floorPlansKey = Object.keys(d).find(k => k.startsWith("floorPlans"));
+        const floorPlans = floorPlansKey ? d[floorPlansKey] : null;
+        if (floorPlans?.unitTypesByBedroom) {
+          for (const group of floorPlans.unitTypesByBedroom) {
+            for (const unitType of (group.availableUnitTypes || [])) {
+              if (unitType.rentPriceMin || unitType.rentPriceMax) {
+                rentPrice = unitType.rentPriceMax || unitType.rentPriceMin;
+                if (unitType.deposit) deposit = unitType.deposit;
+                break;
+              }
+            }
+            if (rentPrice) break;
           }
         }
 
-        // 2. Check rental listings data
+        // 2. feesAndPolicies has pet, deposit, lease info
+        const fees = d.feesAndPolicies || {};
+        if (fees.depositFeeMax) deposit = fees.depositFeeMax;
+        if (fees.availableLeaseTerms?.length) leaseTerms = fees.availableLeaseTerms.join(", ") + " months";
+        if (fees.petPolicies?.length) {
+          petPolicy = fees.petPolicies.map((p: any) => p.policyName || "").filter(Boolean).join(", ");
+          if (petPolicy) petPolicy = petPolicy.charAt(0).toUpperCase() + petPolicy.slice(1) + " allowed";
+        }
+
+        // 3. Check homecards rental extension
         if (!rentPrice) {
-          const rentListings = d.rental?.listings || d.rental?.units || [];
-          if (rentListings.length > 0) {
-            rentPrice = rentListings[0]?.price || rentListings[0]?.rent || null;
+          const homecardsKey = Object.keys(d).find(k => k.startsWith("homecards"));
+          const homecards = homecardsKey ? d[homecardsKey] : null;
+          const rental = homecards?.homes?.[0]?.rentalExtension;
+          if (rental?.rentPriceRange) {
+            rentPrice = rental.rentPriceRange.max || rental.rentPriceRange.min;
           }
         }
 
-        // 3. Fallback to priceInfo if it looks like a rent amount
+        // 4. Fallback: property history events
         if (!rentPrice) {
-          const amt = typeof latestPrice.amount === "number" ? latestPrice.amount : (typeof priceInfo.amount === "number" ? priceInfo.amount : null);
-          if (amt && amt >= 500 && amt <= 20000) {
-            rentPrice = amt;
+          const historyEvents = d.belowTheFold?.propertyHistoryInfo?.events || [];
+          for (const event of historyEvents) {
+            if (typeof event.price === "number" && event.price >= 500 && event.price <= 20000) {
+              rentPrice = event.price;
+              break;
+            }
           }
         }
 
@@ -232,7 +254,7 @@ export async function extractListingFromURL(rawUrl: string): Promise<ListingData
           bathrooms: typeof addrInfo.baths === "number" ? addrInfo.baths : null,
           sqft,
           description: typeof about.description === "string" ? about.description : null,
-          pet_policy: null,
+          pet_policy: petPolicy,
           parking: null,
           laundry: null,
           available_date: null,
