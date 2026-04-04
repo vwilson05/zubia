@@ -170,23 +170,55 @@ export async function extractListingFromURL(rawUrl: string): Promise<ListingData
         const d = data.data;
         const addrInfo = d.aboveTheFold?.addressSectionInfo || {};
         const about = d.about || {};
-        const photos = d.gallery?.photos?.map((p: any) => p.photoUrl || p.url) || [];
-        const pricing = d.aboveTheFold?.priceInfo || d.rental || {};
+        const photos = (d.gallery?.photos || []).map((p: any) => typeof p === "string" ? p : (p?.photoUrl || p?.url || "")).filter(Boolean);
+        const latestPrice = addrInfo.latestPriceInfo || {};
+        const priceInfo = addrInfo.priceInfo || {};
+
+        // Construct address from URL path if not in data
+        let address = null;
+        if (typeof addrInfo.streetAddress === "string") {
+          address = addrInfo.streetAddress;
+        } else {
+          // Extract from the URL: /CA/San-Jose/6911-Serenity-Way-95120/home/...
+          try {
+            const urlParts = new URL(url).pathname.split("/").filter(Boolean);
+            const addrPart = urlParts.find(p => /^\d+/.test(p) && p.includes("-"));
+            if (addrPart) address = addrPart.replace(/-/g, " ");
+          } catch {}
+        }
+
+        // Get rent price (latestPriceInfo for rentals, or rental listing data)
+        const rentListings = d.rental?.listings || d.rental?.units || [];
+        let rentPrice = null;
+        if (rentListings.length > 0) {
+          rentPrice = rentListings[0]?.price || rentListings[0]?.rent || null;
+        }
+        // Fallback to priceInfo amount if it looks like a rent (< $10K/mo)
+        const priceAmount = typeof priceInfo.amount === "number" ? priceInfo.amount : (typeof latestPrice.amount === "number" ? latestPrice.amount : null);
+        if (!rentPrice && priceAmount && priceAmount < 10000) {
+          rentPrice = priceAmount;
+        }
+
+        // Get sqft as a number
+        let sqft = null;
+        if (typeof addrInfo.sqFt === "number") sqft = addrInfo.sqFt;
+        else if (typeof addrInfo.sqFt?.value === "number") sqft = addrInfo.sqFt.value;
+        else if (typeof addrInfo.lotSize === "number") sqft = addrInfo.lotSize;
 
         return {
-          address: addrInfo.streetAddress || addrInfo.address || null,
-          city: addrInfo.city || null,
-          neighborhood: addrInfo.neighborhood || null,
-          price: pricing.amount || pricing.price || addrInfo.price || null,
-          bedrooms: addrInfo.beds || addrInfo.bedrooms || null,
-          bathrooms: addrInfo.baths || addrInfo.bathrooms || null,
-          sqft: addrInfo.sqFt || addrInfo.sqft || null,
-          description: about.description || about.text || null,
+          address,
+          city: typeof addrInfo.city === "string" ? addrInfo.city : null,
+          neighborhood: typeof addrInfo.neighborhood === "string" ? addrInfo.neighborhood : null,
+          price: rentPrice,
+          bedrooms: typeof addrInfo.beds === "number" ? addrInfo.beds : null,
+          bathrooms: typeof addrInfo.baths === "number" ? addrInfo.baths : null,
+          sqft,
+          description: typeof about.description === "string" ? about.description : null,
           pet_policy: null,
           parking: null,
           laundry: null,
           available_date: null,
-          landlord_name: null,
+          landlord_name: about.managementCompany?.name || null,
           landlord_contact: null,
           photos,
           source: "redfin",

@@ -150,7 +150,7 @@ export default function Landing({ onNavigate }: LandingProps) {
                 {demoResult.listing.score_breakdown && Object.keys(demoResult.listing.score_breakdown).length > 0 && (
                   <div className="demo-score-breakdown">
                     <h4>Score Breakdown</h4>
-                    {Object.entries(demoResult.listing.score_breakdown).map(([key, val]: [string, any]) => (
+                    {Object.entries(demoResult.listing.score_breakdown).filter(([key]) => !key.startsWith("_")).map(([key, val]: [string, any]) => (
                       <div key={key} className="breakdown-row">
                         <span className="breakdown-label">{key}</span>
                         <div className="breakdown-bar-track">
