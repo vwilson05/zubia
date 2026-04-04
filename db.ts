@@ -1,0 +1,105 @@
+import { Database } from "bun:sqlite";
+import path from "path";
+
+const DB_PATH = path.join(import.meta.dir, "zubia.db");
+
+const db = new Database(DB_PATH, { create: true });
+
+// Enable WAL mode for better concurrent read/write performance
+db.exec("PRAGMA journal_mode = WAL");
+db.exec("PRAGMA foreign_keys = ON");
+
+// Create tables
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT,
+    commute_address TEXT,
+    budget_min INTEGER,
+    budget_max INTEGER,
+    priorities TEXT DEFAULT '[]',
+    bedrooms INTEGER,
+    bathrooms INTEGER,
+    pet_friendly INTEGER DEFAULT 0,
+    parking TEXT,
+    laundry TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS listings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id),
+    url TEXT,
+    source TEXT DEFAULT 'other',
+    address TEXT,
+    city TEXT,
+    neighborhood TEXT,
+    price INTEGER,
+    bedrooms INTEGER,
+    bathrooms INTEGER,
+    sqft INTEGER,
+    photos TEXT DEFAULT '[]',
+    description TEXT,
+    pet_policy TEXT,
+    parking TEXT,
+    laundry TEXT,
+    available_date TEXT,
+    landlord_name TEXT,
+    landlord_contact TEXT,
+    raw_data TEXT DEFAULT '{}',
+    score INTEGER,
+    score_breakdown TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'saved' CHECK(status IN ('saved','applied','toured','rejected','leased')),
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_id INTEGER REFERENCES listings(id),
+    user_id INTEGER REFERENCES users(id),
+    date_applied TEXT,
+    docs_submitted TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'inquiry' CHECK(status IN ('inquiry','applied','docs_sent','approved','denied','withdrawn')),
+    follow_up_date TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS neighborhood_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_id INTEGER REFERENCES listings(id),
+    address TEXT,
+    commute_time TEXT,
+    commute_distance TEXT,
+    walk_score INTEGER,
+    transit_score INTEGER,
+    crime_summary TEXT,
+    parks_nearby TEXT,
+    grocery_nearby TEXT,
+    schools_nearby TEXT,
+    noise_level TEXT,
+    ai_summary TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS comparisons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id),
+    name TEXT,
+    listing_ids TEXT DEFAULT '[]',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS email_signups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    source TEXT DEFAULT 'landing',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+export default db;
