@@ -564,6 +564,117 @@ a:hover { text-decoration: underline; }
 }
 .add-url-input .input-field { padding-left: 42px; }
 
+/* Search section title */
+.search-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Location input row */
+.search-location-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Filters row */
+.search-filters-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.search-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+  flex: 1;
+}
+
+.search-filter-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.search-filter-select,
+.search-filter-input {
+  padding: 8px 12px !important;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+.search-filter-select:focus,
+.search-filter-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+/* Must-haves pills */
+.search-must-haves {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.search-must-haves-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.search-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--bg-teal);
+  color: var(--primary-dark);
+  border: 1px solid rgba(15, 118, 110, 0.15);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* Search buttons */
+.search-buttons-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Section divider */
+.search-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.search-section-divider::before,
+.search-section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.search-section-divider span {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .loading-card {
   display: flex;
   flex-direction: column;
@@ -1547,6 +1658,10 @@ a:hover { text-decoration: underline; }
   .kanban-board { grid-template-columns: 1fr; }
   .demo-input-row { flex-direction: column; }
   .add-url-row { flex-direction: column; }
+  .search-filters-row { flex-direction: column; }
+  .search-filter-group { min-width: 100%; }
+  .search-buttons-row { flex-direction: column; }
+  .search-location-row { flex-direction: column; }
   .listings-controls { flex-direction: column; align-items: stretch; }
   .compare-actions { flex-direction: column; }
   .listing-card-main { flex-direction: column; }

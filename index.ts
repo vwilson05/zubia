@@ -195,12 +195,15 @@ const server = Bun.serve({
       }
     }
 
-    // POST /api/listings/import-search — Bulk import from Zillow or Redfin search URL
+    // POST /api/listings/import-search — Bulk import from Zillow or Redfin search URL or location
     if (pathname === "/api/listings/import-search" && method === "POST") {
       try {
         const body = await req.json();
-        const { url: searchUrl, page } = body;
-        if (!searchUrl) return errorResponse("Search URL or location is required");
+        // Support both old format (url) and new format (location + source + filters)
+        const rawLocation = body.location || body.url;
+        const source = body.source || "zillow";
+        const page = body.page || 1;
+        if (!rawLocation) return errorResponse("Search URL or location is required");
 
         const user = getUser();
         const userPrefs = {
@@ -215,28 +218,47 @@ const server = Bun.serve({
           nice_to_haves: parseJSON(user?.nice_to_haves) || [],
         };
 
-        // Detect source: Zillow URL, Redfin URL, or plain location string
-        const isZillowUrl = searchUrl.includes("zillow.com");
-        const isRedfinUrl = searchUrl.includes("redfin.com");
-        const isUrl = searchUrl.startsWith("http");
+        // Use filter overrides from request body, fall back to user prefs
+        const filterBeds = body.beds ? parseInt(body.beds) : (userPrefs.bedrooms || undefined);
+        const filterBaths = body.baths ? parseFloat(body.baths) : (userPrefs.bathrooms || undefined);
+        const filterMinPrice = body.minPrice || userPrefs.budget_min || undefined;
+        const filterMaxPrice = body.maxPrice || userPrefs.budget_max || undefined;
+
+        // Detect if input is a URL or a natural language location
+        const isZillowUrl = rawLocation.includes("zillow.com");
+        const isRedfinUrl = rawLocation.includes("redfin.com");
+        const isUrl = rawLocation.startsWith("http");
         let searchData;
 
         if (isZillowUrl) {
-          // Zillow search URL with filters
-          searchData = await searchListingsByURL(searchUrl, page || 1);
+          // Zillow search URL with filters baked in
+          searchData = await searchListingsByURL(rawLocation, page);
         } else if (isRedfinUrl) {
           // Redfin URL
-          searchData = await searchRedfinListings(searchUrl, page || 1);
+          searchData = await searchRedfinListings(rawLocation, page);
         } else {
-          // Plain location string (e.g., "san-jose-ca") — use Zillow location search with user prefs
-          searchData = await searchListingsByLocation(searchUrl, {
-            listType: "for-rent",
-            beds: userPrefs.bedrooms || undefined,
-            baths: userPrefs.bathrooms || undefined,
-            minPrice: userPrefs.budget_min || undefined,
-            maxPrice: userPrefs.budget_max || undefined,
-            page: page || 1,
-          });
+          // Natural language location — convert to URL-friendly format
+          const formattedLocation = rawLocation
+            .trim()
+            .toLowerCase()
+            .replace(/[,]+/g, " ")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/^-|-$/g, "");
+
+          if (source === "redfin") {
+            searchData = await searchRedfinListings(formattedLocation, page);
+          } else {
+            // Default: Zillow location search
+            searchData = await searchListingsByLocation(formattedLocation, {
+              listType: "for-rent",
+              beds: filterBeds,
+              baths: filterBaths,
+              minPrice: filterMinPrice,
+              maxPrice: filterMaxPrice,
+              page,
+            });
+          }
         }
 
         // Score each result using a lightweight in-memory scoring approach

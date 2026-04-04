@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Icons, ScoreBadge } from "./Icons";
 
 interface AddListingProps {
@@ -23,8 +23,32 @@ interface SearchResultItem {
   scoreBreakdown: any;
 }
 
+interface CriteriaItem {
+  id: string;
+  label: string;
+  type: "preset" | "custom";
+}
+
+interface UserPreferences {
+  budget_min?: number;
+  budget_max?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  must_haves?: CriteriaItem[];
+  nice_to_haves?: CriteriaItem[];
+}
+
 export default function AddListing({ onNavigate }: AddListingProps) {
-  const [url, setUrl] = useState("");
+  // Search state
+  const [location, setLocation] = useState("");
+  const [beds, setBeds] = useState("");
+  const [baths, setBaths] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [mustHaves, setMustHaves] = useState<CriteriaItem[]>([]);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  // Search results state
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -33,16 +57,41 @@ export default function AddListing({ onNavigate }: AddListingProps) {
   const [totalCount, setTotalCount] = useState(0);
   const [filteredCount, setFilteredCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchUrl, setSearchUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [importResult, setImportResult] = useState<{ count: number } | null>(null);
+  const [lastSearchSource, setLastSearchSource] = useState<"zillow" | "redfin">("zillow");
 
-  const handleSearch = async (page: number = 1) => {
-    const input = url.trim();
-    if (!input) return;
+  // Paste URL state
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [pasteLoading, setPasteLoading] = useState(false);
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const [pasteSuccess, setPasteSuccess] = useState(false);
+
+  // Load user preferences on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/preferences");
+        const prefs: UserPreferences = await res.json();
+        if (prefs.bedrooms) setBeds(String(prefs.bedrooms));
+        if (prefs.bathrooms) setBaths(String(prefs.bathrooms));
+        if (prefs.budget_min) setMinPrice(String(prefs.budget_min));
+        if (prefs.budget_max) setMaxPrice(String(prefs.budget_max));
+        if (prefs.must_haves && prefs.must_haves.length > 0) setMustHaves(prefs.must_haves);
+        setPrefsLoaded(true);
+      } catch {
+        setPrefsLoaded(true);
+      }
+    })();
+  }, []);
+
+  const handleSearch = async (source: "zillow" | "redfin", page: number = 1) => {
+    const loc = location.trim();
+    if (!loc) return;
     setLoading(true);
     setError(null);
     setImportResult(null);
+    setLastSearchSource(source);
     if (page === 1) {
       setResults([]);
       setSelected(new Set());
@@ -56,7 +105,15 @@ export default function AddListing({ onNavigate }: AddListingProps) {
       const res = await fetch("/api/listings/import-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: input, page }),
+        body: JSON.stringify({
+          location: loc,
+          source,
+          beds: beds || undefined,
+          baths: baths || undefined,
+          minPrice: minPrice ? parseInt(minPrice) : undefined,
+          maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
+          page,
+        }),
       });
       const data = await res.json();
       if (data.error) {
@@ -66,8 +123,6 @@ export default function AddListing({ onNavigate }: AddListingProps) {
         setTotalCount(data.totalCount || 0);
         setFilteredCount(data.filteredCount || 0);
         setCurrentPage(data.currentPage || 1);
-        setSearchUrl(input);
-        // Auto-select all by default
         const allIds = new Set((data.results || []).map((r: SearchResultItem) => r.id));
         setSelected(allIds);
       }
@@ -84,11 +139,8 @@ export default function AddListing({ onNavigate }: AddListingProps) {
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -104,7 +156,6 @@ export default function AddListing({ onNavigate }: AddListingProps) {
   const handleBulkSave = async () => {
     const selectedListings = results.filter((r) => selected.has(r.id));
     if (selectedListings.length === 0) return;
-
     setSaving(true);
     setError(null);
 
@@ -123,50 +174,165 @@ export default function AddListing({ onNavigate }: AddListingProps) {
     } catch (e: any) {
       setError(e.message || "Failed to save listings");
     }
-
     setSaving(false);
   };
 
   const handlePageChange = (page: number) => {
-    handleSearch(page);
+    handleSearch(lastSearchSource, page);
+  };
+
+  const handlePasteAdd = async () => {
+    const u = pasteUrl.trim();
+    if (!u) return;
+    setPasteLoading(true);
+    setPasteError(null);
+    setPasteSuccess(false);
+
+    try {
+      const res = await fetch("/api/listings/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: u }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setPasteError(data.error);
+      } else {
+        setPasteSuccess(true);
+        setPasteUrl("");
+      }
+    } catch (e: any) {
+      setPasteError(e.message || "Failed to add listing");
+    }
+    setPasteLoading(false);
   };
 
   return (
     <div className="page add-page">
       <div className="page-header">
         <div>
-          <h1>Import Listings</h1>
+          <h1>Add Listings</h1>
           <p className="text-secondary">
-            Search Zillow or Redfin with your filters, then import the results
+            Search rentals or paste a URL to import listings
           </p>
         </div>
       </div>
 
+      {/* ---- SECTION 1: Search Rentals ---- */}
       <div className="add-form-card">
-        <div className="add-url-row">
-          <div className="add-url-input">
+        <h2 className="search-section-title">Search Rentals</h2>
+        <p className="text-secondary" style={{ fontSize: "13px", marginBottom: "20px" }}>
+          Searches use your preferences from Settings. Results scored against your criteria.
+        </p>
+
+        {/* Location input */}
+        <div className="search-location-row">
+          <div className="add-url-input" style={{ flex: 1 }}>
             <Icons.Search />
             <input
               type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a Zillow/Redfin URL, or type a location (e.g. san-jose-ca)..."
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder='Enter a location (e.g. "San Jose, CA" or "Mountain View")'
               className="input-field input-lg"
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch("zillow")}
             />
           </div>
+        </div>
+
+        {/* Filters row */}
+        <div className="search-filters-row">
+          <div className="search-filter-group">
+            <label className="search-filter-label">Bedrooms</label>
+            <select
+              value={beds}
+              onChange={(e) => setBeds(e.target.value)}
+              className="input-field search-filter-select"
+            >
+              <option value="">Any</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5+</option>
+            </select>
+          </div>
+
+          <div className="search-filter-group">
+            <label className="search-filter-label">Bathrooms</label>
+            <select
+              value={baths}
+              onChange={(e) => setBaths(e.target.value)}
+              className="input-field search-filter-select"
+            >
+              <option value="">Any</option>
+              <option value="1">1</option>
+              <option value="1.5">1.5</option>
+              <option value="2">2</option>
+              <option value="2.5">2.5</option>
+              <option value="3">3+</option>
+            </select>
+          </div>
+
+          <div className="search-filter-group">
+            <label className="search-filter-label">Min Price</label>
+            <input
+              type="number"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              placeholder="$0"
+              className="input-field search-filter-input"
+            />
+          </div>
+
+          <div className="search-filter-group">
+            <label className="search-filter-label">Max Price</label>
+            <input
+              type="number"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              placeholder="No max"
+              className="input-field search-filter-input"
+            />
+          </div>
+        </div>
+
+        {/* Must-haves pills */}
+        {mustHaves.length > 0 && (
+          <div className="search-must-haves">
+            <span className="search-must-haves-label">Must-haves:</span>
+            {mustHaves.map((mh) => (
+              <span key={mh.id} className="search-pill">{mh.label}</span>
+            ))}
+            <button
+              className="btn btn-ghost"
+              style={{ fontSize: "12px", padding: "2px 8px" }}
+              onClick={() => onNavigate("settings")}
+            >
+              Edit in Settings
+            </button>
+          </div>
+        )}
+
+        {/* Search buttons */}
+        <div className="search-buttons-row">
           <button
             className="btn btn-primary btn-lg"
-            onClick={() => handleSearch()}
-            disabled={loading || !url.trim()}
+            onClick={() => handleSearch("zillow")}
+            disabled={loading || !location.trim()}
           >
-            {loading ? "Searching..." : "Search"}
+            {loading && lastSearchSource === "zillow" ? "Searching..." : "Search Zillow"}
+          </button>
+          <button
+            className="btn btn-outline btn-lg"
+            onClick={() => handleSearch("redfin")}
+            disabled={loading || !location.trim()}
+          >
+            {loading && lastSearchSource === "redfin" ? "Searching..." : "Search Redfin"}
           </button>
         </div>
-        <p className="text-secondary" style={{ fontSize: "13px", marginTop: "8px" }}>
-          Paste a Zillow or Redfin search URL, or type a location (e.g. "San Francisco, CA") to search Redfin rentals
-        </p>
 
+        {/* Loading indicator */}
         {loading && (
           <div className="loading-card">
             <div className="loading-spinner" />
@@ -184,6 +350,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
           </div>
         )}
 
+        {/* Error */}
         {error && (
           <div className="error-card">
             <Icons.Warning />
@@ -191,6 +358,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
           </div>
         )}
 
+        {/* Import success */}
         {importResult && (
           <div className="save-confirmation" style={{ marginTop: "16px", padding: "16px" }}>
             <Icons.Check />
@@ -204,6 +372,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
           </div>
         )}
 
+        {/* Results */}
         {results.length > 0 && !importResult && (
           <div className="search-results-section" style={{ marginTop: "24px" }}>
             <div
@@ -258,13 +427,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
                     transition: "all 0.15s ease",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      paddingTop: "4px",
-                    }}
-                  >
+                  <div style={{ display: "flex", alignItems: "flex-start", paddingTop: "4px" }}>
                     <input
                       type="checkbox"
                       checked={selected.has(r.id)}
@@ -289,44 +452,23 @@ export default function AddListing({ onNavigate }: AddListingProps) {
                   )}
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                      }}
-                    >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
-                        <h3 style={{ margin: 0, fontSize: "15px" }}>
-                          {r.address.street}
-                        </h3>
-                        <p
-                          className="text-secondary"
-                          style={{ margin: "2px 0 0", fontSize: "13px" }}
-                        >
+                        <h3 style={{ margin: 0, fontSize: "15px" }}>{r.address.street}</h3>
+                        <p className="text-secondary" style={{ margin: "2px 0 0", fontSize: "13px" }}>
                           {r.address.city}, {r.address.state} {r.address.zipcode}
                         </p>
                       </div>
                       <ScoreBadge score={r.score || 0} size="small" />
                     </div>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "16px",
-                        marginTop: "8px",
-                        fontSize: "14px",
-                        flexWrap: "wrap",
-                      }}
-                    >
+                    <div style={{ display: "flex", gap: "16px", marginTop: "8px", fontSize: "14px", flexWrap: "wrap" }}>
                       <span style={{ fontWeight: 600 }}>{r.price}</span>
                       <span>{r.beds} bd</span>
                       <span>{r.baths} ba</span>
                       <span>{(r.livingArea || r.area || 0).toLocaleString()} sqft</span>
                       {r.daysOnZillow > 0 && (
-                        <span className="text-secondary">
-                          {r.daysOnZillow}d on market
-                        </span>
+                        <span className="text-secondary">{r.daysOnZillow}d on market</span>
                       )}
                       <span className="text-secondary">{r.homeType}</span>
                     </div>
@@ -336,14 +478,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
             </div>
 
             {/* Pagination */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "8px",
-                marginTop: "16px",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
               {currentPage > 1 && (
                 <button
                   className="btn btn-ghost"
@@ -353,10 +488,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
                   Previous
                 </button>
               )}
-              <span
-                className="text-secondary"
-                style={{ display: "flex", alignItems: "center", fontSize: "14px" }}
-              >
+              <span className="text-secondary" style={{ display: "flex", alignItems: "center", fontSize: "14px" }}>
                 Page {currentPage}
               </span>
               {results.length >= 40 && (
@@ -370,7 +502,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
               )}
             </div>
 
-            {/* Bulk save button */}
+            {/* Bulk save */}
             <div style={{ marginTop: "20px" }}>
               <button
                 className="btn btn-primary btn-lg"
@@ -383,6 +515,60 @@ export default function AddListing({ onNavigate }: AddListingProps) {
                   : `Import ${selected.size} Selected Listing${selected.size !== 1 ? "s" : ""}`}
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---- DIVIDER ---- */}
+      <div className="search-section-divider">
+        <span>or</span>
+      </div>
+
+      {/* ---- SECTION 2: Paste URL ---- */}
+      <div className="add-form-card">
+        <h2 className="search-section-title">Add a Listing You Found</h2>
+        <p className="text-secondary" style={{ fontSize: "13px", marginBottom: "20px" }}>
+          Works with Zillow, Redfin, and most rental sites
+        </p>
+
+        <div className="add-url-row">
+          <div className="add-url-input">
+            <Icons.Search />
+            <input
+              type="text"
+              value={pasteUrl}
+              onChange={(e) => setPasteUrl(e.target.value)}
+              placeholder="Paste a listing URL..."
+              className="input-field input-lg"
+              onKeyDown={(e) => e.key === "Enter" && handlePasteAdd()}
+            />
+          </div>
+          <button
+            className="btn btn-primary btn-lg"
+            onClick={handlePasteAdd}
+            disabled={pasteLoading || !pasteUrl.trim()}
+          >
+            {pasteLoading ? "Adding..." : "Add Listing"}
+          </button>
+        </div>
+
+        {pasteError && (
+          <div className="error-card">
+            <Icons.Warning />
+            <p>{pasteError}</p>
+          </div>
+        )}
+
+        {pasteSuccess && (
+          <div className="save-confirmation" style={{ marginTop: "16px", padding: "16px" }}>
+            <Icons.Check />
+            <span>Listing added and scored!</span>
+            <button
+              className="btn btn-ghost"
+              onClick={() => onNavigate("listings")}
+            >
+              View Dashboard <Icons.ArrowRight />
+            </button>
           </div>
         )}
       </div>
