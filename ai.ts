@@ -43,20 +43,53 @@ interface ScoreBreakdown {
 }
 
 export async function extractListingFromURL(url: string): Promise<ListingData> {
-  // Fetch the URL content
+  // Try to fetch page content. Sites like Zillow block server-side requests,
+  // so we also extract what we can from the URL structure itself.
   let pageContent = "";
+  let fetchFailed = false;
   try {
     const response = await fetch(url, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
       },
+      redirect: "follow",
     });
-    pageContent = await response.text();
-    // Trim to first 50k chars to stay within context limits
-    pageContent = pageContent.substring(0, 50000);
+    const text = await response.text();
+    // Check if we got actual content or just a JS shell
+    if (text.length > 1000 && (text.includes("bedrooms") || text.includes("price") || text.includes("rent") || text.includes("sqft") || text.includes("bath"))) {
+      pageContent = text.substring(0, 50000);
+    } else {
+      fetchFailed = true;
+      pageContent = `[Page content was blocked or requires JavaScript rendering. Extract data from URL structure and any metadata available.]`;
+    }
   } catch (e) {
-    pageContent = `Failed to fetch URL: ${e}. Please extract what you can from the URL itself.`;
+    fetchFailed = true;
+    pageContent = `[Failed to fetch: ${e}]`;
+  }
+
+  // Extract info from URL structure (Zillow, Redfin encode address in URL)
+  let urlHints = "";
+  try {
+    const urlPath = new URL(url).pathname;
+    // Zillow: /homedetails/742-Castro-St-San-Francisco-CA-94114/15063122_zpid/
+    // Redfin: /CA/San-Francisco/742-Castro-St-94114/home/1234567
+    const addressMatch = urlPath.match(/\/(\d+[-\w]+-(?:St|Ave|Rd|Dr|Ln|Blvd|Way|Ct|Pl|Cir|Ter|Loop)[-\w]*)/i);
+    if (addressMatch) {
+      const addr = addressMatch[1].replace(/-/g, " ");
+      urlHints += `Address from URL: ${addr}\n`;
+    }
+    // Extract city/state from URL
+    const parts = urlPath.split("/").filter(Boolean);
+    if (parts.length > 2) {
+      urlHints += `URL path parts: ${parts.join(", ")}\n`;
+    }
+  } catch {}
+
+  if (urlHints) {
+    pageContent += `\n\nURL-derived hints:\n${urlHints}`;
   }
 
   // Detect source from URL
@@ -67,17 +100,23 @@ export async function extractListingFromURL(url: string): Promise<ListingData> {
   else if (url.includes("apartments.com")) source = "apartments";
 
   const message = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 2000,
     messages: [
       {
         role: "user",
-        content: `Extract structured rental listing data from this webpage content. The URL is: ${url}
+        content: `Extract structured rental listing data from this URL and any available page content.
+
+URL: ${url}
+Source platform: ${source}
+${fetchFailed ? "NOTE: The page could not be fully fetched (JavaScript rendering required). Extract what you can from the URL structure, metadata, and any partial content below." : ""}
 
 Page content:
 ${pageContent}
 
-Return ONLY valid JSON with these fields (use null for unavailable data):
+IMPORTANT: Even if page content is limited, extract what you can from the URL itself. Zillow and Redfin encode the address in the URL path (e.g., /homedetails/742-Castro-St-San-Francisco-CA-94114/). Parse the address, city, and state from the URL.
+
+Return ONLY valid JSON with these fields (use null for truly unavailable data, but try hard to extract the address):
 {
   "address": "full street address",
   "city": "city name",
