@@ -218,14 +218,18 @@ export async function extractListingFromURL(rawUrl: string): Promise<ListingData
           if (petPolicy) petPolicy = petPolicy.charAt(0).toUpperCase() + petPolicy.slice(1) + " allowed";
         }
 
-        // 3. Check homecards rental extension
-        if (!rentPrice) {
-          const homecardsKey = Object.keys(d).find(k => k.startsWith("homecards"));
-          const homecards = homecardsKey ? d[homecardsKey] : null;
-          const rental = homecards?.homes?.[0]?.rentalExtension;
-          if (rental?.rentPriceRange) {
+        // 3. Check homecards rental extension (also has contact info)
+        let contactPhone = null;
+        let contactEmail = null;
+        const homecardsKey = Object.keys(d).find(k => k.startsWith("homecards"));
+        const homecards = homecardsKey ? d[homecardsKey] : null;
+        const rental = homecards?.homes?.[0]?.rentalExtension;
+        if (rental) {
+          if (!rentPrice && rental.rentPriceRange) {
             rentPrice = rental.rentPriceRange.max || rental.rentPriceRange.min;
           }
+          contactPhone = rental.desktopPhone || rental.mobileWebPhone || null;
+          contactEmail = rental.mlsAgentEmail || null;
         }
 
         // 4. Fallback: property history events
@@ -258,8 +262,8 @@ export async function extractListingFromURL(rawUrl: string): Promise<ListingData
           parking: null,
           laundry: null,
           available_date: null,
-          landlord_name: about.managementCompany?.name || null,
-          landlord_contact: null,
+          landlord_name: about.managementCompany?.name || (contactEmail ? contactEmail.split("@")[0] : null),
+          landlord_contact: [contactPhone, contactEmail].filter(Boolean).join(" / ") || null,
           photos,
           source: "redfin",
         };
