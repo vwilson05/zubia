@@ -15,7 +15,7 @@ import fs from "fs";
 seedDemoData();
 
 const isDev = process.env.NODE_ENV !== "production";
-const PORT = 3342;
+const PORT = parseInt(process.env.PORT || "3342");
 
 // Helper to get user (use first user for now, single-user MVP)
 function getUser() {
