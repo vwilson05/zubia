@@ -1632,9 +1632,8 @@ a:hover { text-decoration: underline; }
 /* ===== Mobile Top Bar & Sidebar Overlay ===== */
 .topbar {
   padding: 16px 24px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  background: var(--primary);
+  color: white;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -1646,7 +1645,7 @@ a:hover { text-decoration: underline; }
 .topbar-title {
   font-size: 18px;
   font-weight: 700;
-  color: var(--text);
+  color: white;
 }
 
 .hamburger {
@@ -1667,7 +1666,7 @@ a:hover { text-decoration: underline; }
   display: block;
   width: 24px;
   height: 2.5px;
-  background: var(--text);
+  background: white;
   border-radius: 2px;
 }
 
