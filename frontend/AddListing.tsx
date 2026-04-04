@@ -211,7 +211,6 @@ export default function AddListing({ onNavigate }: AddListingProps) {
     <div className="page add-page">
       <div className="page-header">
         <div>
-          <h1>Add Listings</h1>
           <p className="text-secondary">
             Search rentals or paste a URL to import listings
           </p>

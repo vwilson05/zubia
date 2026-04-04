@@ -65,7 +65,6 @@ export default function Advisor() {
     <div className="page advisor-page">
       <div className="page-header">
         <div>
-          <h1>AI Advisor</h1>
           <p className="text-secondary">Ask anything about your listings, neighborhoods, or the market</p>
         </div>
       </div>

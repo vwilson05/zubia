@@ -63,7 +63,6 @@ export default function Listings({ onNavigate }: ListingsProps) {
     <div className="page listings-page">
       <div className="page-header">
         <div>
-          <h1>My Listings</h1>
           <p className="text-secondary">{filtered.length} listings</p>
         </div>
         <button className="btn btn-primary" onClick={() => onNavigate("add")}>

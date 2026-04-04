@@ -154,7 +154,6 @@ export default function Settings() {
     <div className="page settings-page">
       <div className="page-header">
         <div>
-          <h1>Settings</h1>
           <p className="text-secondary">Configure your search preferences and scoring weights</p>
         </div>
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>

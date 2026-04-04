@@ -28,7 +28,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     <div className="page dashboard-page">
       <div className="page-header">
         <div>
-          <h1>{prefs?.name ? `${prefs.name}'s Rental Search` : "Rental Search"}</h1>
           <p className="text-secondary">Bay Area</p>
         </div>
         <button className="btn btn-primary" onClick={() => onNavigate("add")}>

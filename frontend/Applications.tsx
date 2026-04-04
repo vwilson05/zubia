@@ -75,7 +75,6 @@ export default function Applications() {
     <div className="page applications-page">
       <div className="page-header">
         <div>
-          <h1>Applications</h1>
           <p className="text-secondary">{applications.length} total applications</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>

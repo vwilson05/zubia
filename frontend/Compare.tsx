@@ -74,7 +74,6 @@ export default function Compare() {
     <div className="page compare-page">
       <div className="page-header">
         <div>
-          <h1>Compare Listings</h1>
           <p className="text-secondary">Select 2-5 listings to compare side-by-side</p>
         </div>
       </div>
