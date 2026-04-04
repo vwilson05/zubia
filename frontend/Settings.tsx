@@ -9,6 +9,34 @@ const DEFAULT_PRIORITIES = [
   { criterion: "pet_friendly", weight: 0.1 },
 ];
 
+interface CriteriaItem {
+  id: string;
+  label: string;
+  type: "preset" | "custom";
+}
+
+const PRESET_MUST_HAVES: CriteriaItem[] = [
+  { id: "washer_dryer", label: "In-unit washer/dryer", type: "preset" },
+  { id: "backyard", label: "Backyard / outdoor space", type: "preset" },
+  { id: "parking", label: "Parking included", type: "preset" },
+  { id: "pet_friendly", label: "Pet-friendly", type: "preset" },
+  { id: "garage", label: "Garage", type: "preset" },
+  { id: "ac", label: "Air conditioning", type: "preset" },
+  { id: "dishwasher", label: "Dishwasher", type: "preset" },
+  { id: "ev_charging", label: "EV charging", type: "preset" },
+];
+
+const PRESET_NICE_TO_HAVES: CriteriaItem[] = [
+  { id: "pool", label: "Pool", type: "preset" },
+  { id: "extra_bathroom", label: "Extra bathroom (3+)", type: "preset" },
+  { id: "modern_kitchen", label: "Updated/modern kitchen", type: "preset" },
+  { id: "hardwood_floors", label: "Hardwood floors", type: "preset" },
+  { id: "walk_in_closet", label: "Walk-in closet", type: "preset" },
+  { id: "home_office", label: "Home office / den", type: "preset" },
+  { id: "fireplace", label: "Fireplace", type: "preset" },
+  { id: "smart_home", label: "Smart home features", type: "preset" },
+];
+
 export default function Settings() {
   const [prefs, setPrefs] = useState<any>({
     name: "",
@@ -22,11 +50,15 @@ export default function Settings() {
     parking: "",
     laundry: "",
     priorities: DEFAULT_PRIORITIES,
+    must_haves: [] as CriteriaItem[],
+    nice_to_haves: [] as CriteriaItem[],
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [rescoring, setRescoring] = useState(false);
   const [rescored, setRescored] = useState(false);
+  const [customMustHave, setCustomMustHave] = useState("");
+  const [customNiceToHave, setCustomNiceToHave] = useState("");
 
   useEffect(() => {
     fetch("/api/preferences")
@@ -37,6 +69,8 @@ export default function Settings() {
             ...data,
             pet_friendly: !!data.pet_friendly,
             priorities: data.priorities || DEFAULT_PRIORITIES,
+            must_haves: data.must_haves || [],
+            nice_to_haves: data.nice_to_haves || [],
           });
         }
       });
@@ -82,6 +116,39 @@ export default function Settings() {
   };
 
   const totalWeight = prefs.priorities.reduce((s: number, p: any) => s + p.weight, 0);
+
+  const toggleCriteriaItem = (field: "must_haves" | "nice_to_haves", item: CriteriaItem) => {
+    const current: CriteriaItem[] = prefs[field] || [];
+    const exists = current.some((c: CriteriaItem) => c.id === item.id);
+    const updated = exists
+      ? current.filter((c: CriteriaItem) => c.id !== item.id)
+      : [...current, item];
+    setPrefs({ ...prefs, [field]: updated });
+  };
+
+  const addCustomItem = (field: "must_haves" | "nice_to_haves", text: string) => {
+    if (!text.trim()) return;
+    const id = text.trim().toLowerCase().replace(/\s+/g, "_");
+    const current: CriteriaItem[] = prefs[field] || [];
+    if (current.some((c: CriteriaItem) => c.id === id)) return;
+    const item: CriteriaItem = { id, label: text.trim(), type: "custom" };
+    setPrefs({ ...prefs, [field]: [...current, item] });
+  };
+
+  const removeItem = (field: "must_haves" | "nice_to_haves", id: string) => {
+    const current: CriteriaItem[] = prefs[field] || [];
+    setPrefs({ ...prefs, [field]: current.filter((c: CriteriaItem) => c.id !== id) });
+  };
+
+  const isItemSelected = (field: "must_haves" | "nice_to_haves", id: string): boolean => {
+    const current: CriteriaItem[] = prefs[field] || [];
+    return current.some((c: CriteriaItem) => c.id === id);
+  };
+
+  const getCustomItems = (field: "must_haves" | "nice_to_haves"): CriteriaItem[] => {
+    const current: CriteriaItem[] = prefs[field] || [];
+    return current.filter((c: CriteriaItem) => c.type === "custom");
+  };
 
   return (
     <div className="page settings-page">
@@ -253,6 +320,114 @@ export default function Settings() {
               <Icons.Warning /> Weights should add up to 100% (currently {Math.round(totalWeight * 100)}%)
             </p>
           )}
+        </div>
+
+        {/* Must-Haves */}
+        <div className="settings-card settings-card-full">
+          <h3>Must-Haves (Deal-Breakers)</h3>
+          <p className="text-secondary">Listings missing these will be flagged and score-capped</p>
+          <div className="criteria-checkboxes">
+            {PRESET_MUST_HAVES.map(item => (
+              <label key={item.id} className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={isItemSelected("must_haves", item.id)}
+                  onChange={() => toggleCriteriaItem("must_haves", item)}
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+          {getCustomItems("must_haves").length > 0 && (
+            <div className="criteria-pills">
+              {getCustomItems("must_haves").map(item => (
+                <span key={item.id} className="criteria-pill">
+                  {item.label}
+                  <button
+                    className="pill-remove"
+                    onClick={() => removeItem("must_haves", item.id)}
+                    aria-label={`Remove ${item.label}`}
+                  >x</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="criteria-add-row">
+            <input
+              type="text"
+              value={customMustHave}
+              onChange={e => setCustomMustHave(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  addCustomItem("must_haves", customMustHave);
+                  setCustomMustHave("");
+                }
+              }}
+              className="input-field"
+              placeholder="Add custom must-have"
+            />
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                addCustomItem("must_haves", customMustHave);
+                setCustomMustHave("");
+              }}
+            >Add</button>
+          </div>
+        </div>
+
+        {/* Nice-to-Haves */}
+        <div className="settings-card settings-card-full">
+          <h3>Nice-to-Haves (Bonus Points)</h3>
+          <p className="text-secondary">Listings with these get a score boost</p>
+          <div className="criteria-checkboxes">
+            {PRESET_NICE_TO_HAVES.map(item => (
+              <label key={item.id} className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={isItemSelected("nice_to_haves", item.id)}
+                  onChange={() => toggleCriteriaItem("nice_to_haves", item)}
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+          {getCustomItems("nice_to_haves").length > 0 && (
+            <div className="criteria-pills">
+              {getCustomItems("nice_to_haves").map(item => (
+                <span key={item.id} className="criteria-pill">
+                  {item.label}
+                  <button
+                    className="pill-remove"
+                    onClick={() => removeItem("nice_to_haves", item.id)}
+                    aria-label={`Remove ${item.label}`}
+                  >x</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="criteria-add-row">
+            <input
+              type="text"
+              value={customNiceToHave}
+              onChange={e => setCustomNiceToHave(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  addCustomItem("nice_to_haves", customNiceToHave);
+                  setCustomNiceToHave("");
+                }
+              }}
+              className="input-field"
+              placeholder="Add custom nice-to-have"
+            />
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                addCustomItem("nice_to_haves", customNiceToHave);
+                setCustomNiceToHave("");
+              }}
+            >Add</button>
+          </div>
         </div>
 
         {/* Recalculate */}

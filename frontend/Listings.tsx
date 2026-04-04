@@ -141,6 +141,18 @@ export default function Listings({ onNavigate }: ListingsProps) {
                   {listing.sqft && <span>{listing.sqft.toLocaleString()} sqft</span>}
                   <StatusPill status={listing.status} />
                 </div>
+                {listing.score_breakdown?._missing_must_haves?.length > 0 && (
+                  <div className="must-have-warning">
+                    <Icons.Warning /> Missing: {listing.score_breakdown._missing_must_haves.join(", ")}
+                  </div>
+                )}
+                {listing.score_breakdown?._present_nice_to_haves?.length > 0 && (
+                  <div className="nice-to-have-badges">
+                    Bonus: {listing.score_breakdown._present_nice_to_haves.map((item: string, i: number) => (
+                      <span key={i} className="nice-to-have-badge">{item}</span>
+                    ))}
+                  </div>
+                )}
                 {listing.notes && <p className="listing-notes">{listing.notes}</p>}
               </div>
             </div>
@@ -182,8 +194,22 @@ export default function Listings({ onNavigate }: ListingsProps) {
                 {listing.score_breakdown && Object.keys(listing.score_breakdown).length > 0 && (
                   <div className="score-breakdown-section">
                     <h4>Score Breakdown</h4>
+                    {listing.score_breakdown._must_have_capped && (
+                      <div className="must-have-warning must-have-warning-detail">
+                        <Icons.Warning /> Score capped at 40 due to missing must-haves: {(listing.score_breakdown._missing_must_haves || []).join(", ")}
+                      </div>
+                    )}
+                    {listing.score_breakdown._present_nice_to_haves?.length > 0 && (
+                      <div className="nice-to-have-badges nice-to-have-detail">
+                        Bonus applied for: {listing.score_breakdown._present_nice_to_haves.map((item: string, i: number) => (
+                          <span key={i} className="nice-to-have-badge">{item}</span>
+                        ))}
+                      </div>
+                    )}
                     <div className="breakdown-list">
-                      {Object.entries(listing.score_breakdown).map(([key, val]: [string, any]) => (
+                      {Object.entries(listing.score_breakdown)
+                        .filter(([key]) => !key.startsWith("_"))
+                        .map(([key, val]: [string, any]) => (
                         <div key={key} className="breakdown-row">
                           <span className="breakdown-label">{key}</span>
                           <div className="breakdown-bar-track">

@@ -24,6 +24,8 @@ db.exec(`
     pet_friendly INTEGER DEFAULT 0,
     parking TEXT,
     laundry TEXT,
+    must_haves TEXT DEFAULT '[]',
+    nice_to_haves TEXT DEFAULT '[]',
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -101,5 +103,17 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 `);
+
+// Migrate: add must_haves and nice_to_haves columns if they don't exist
+try {
+  db.exec("ALTER TABLE users ADD COLUMN must_haves TEXT DEFAULT '[]'");
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.exec("ALTER TABLE users ADD COLUMN nice_to_haves TEXT DEFAULT '[]'");
+} catch (e) {
+  // Column already exists
+}
 
 export default db;

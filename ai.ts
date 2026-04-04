@@ -21,6 +21,12 @@ interface ListingData {
   source?: string;
 }
 
+interface CriteriaItem {
+  id: string;
+  label: string;
+  type: "preset" | "custom";
+}
+
 interface UserPreferences {
   commute_address?: string;
   budget_min?: number;
@@ -31,6 +37,8 @@ interface UserPreferences {
   parking?: string;
   laundry?: string;
   priorities?: Array<{ criterion: string; weight: number }>;
+  must_haves?: CriteriaItem[];
+  nice_to_haves?: CriteriaItem[];
 }
 
 interface ScoreBreakdown {
@@ -40,6 +48,14 @@ interface ScoreBreakdown {
     weighted_score: number;
     reason: string;
   };
+}
+
+interface ScoringResult {
+  score: number;
+  breakdown: ScoreBreakdown;
+  missing_must_haves?: string[];
+  present_nice_to_haves?: string[];
+  must_have_capped?: boolean;
 }
 
 function cleanListingURL(url: string): string {
@@ -301,7 +317,7 @@ export async function searchRedfinListings(
 export async function scoreListing(
   listing: any,
   userPrefs: UserPreferences
-): Promise<{ score: number; breakdown: ScoreBreakdown }> {
+): Promise<ScoringResult> {
   const priorities = userPrefs.priorities || [
     { criterion: "commute", weight: 0.35 },
     { criterion: "price", weight: 0.25 },
@@ -309,6 +325,30 @@ export async function scoreListing(
     { criterion: "walkability", weight: 0.1 },
     { criterion: "pet_friendly", weight: 0.1 },
   ];
+
+  const mustHaves = userPrefs.must_haves || [];
+  const niceToHaves = userPrefs.nice_to_haves || [];
+
+  let mustHavePrompt = "";
+  if (mustHaves.length > 0) {
+    const mustHaveLabels = mustHaves.map(m => m.label).join(", ");
+    mustHavePrompt = `
+MUST-HAVES (Deal-Breakers): ${mustHaveLabels}
+Analyze the listing description, features, and data fields carefully for each must-have.
+If any must-have is clearly missing from the listing, the final score MUST be capped at 40.
+List which must-haves are missing in "missing_must_haves" (array of label strings).
+If all must-haves are present, "missing_must_haves" should be an empty array.`;
+  }
+
+  let niceToHavePrompt = "";
+  if (niceToHaves.length > 0) {
+    const niceToHaveLabels = niceToHaves.map(n => n.label).join(", ");
+    niceToHavePrompt = `
+NICE-TO-HAVES (Bonus Points): ${niceToHaveLabels}
+Award up to +10 bonus points total for nice-to-have features that are present in the listing.
+List which nice-to-haves are present in "present_nice_to_haves" (array of label strings).
+If none are present, "present_nice_to_haves" should be an empty array.`;
+  }
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-20250514",
@@ -334,6 +374,8 @@ USER PREFERENCES:
 - Needs: ${userPrefs.bedrooms || "any"} BR / ${userPrefs.bathrooms || "any"} BA
 - Pet friendly: ${userPrefs.pet_friendly ? "yes" : "no"}
 - Priorities: ${JSON.stringify(priorities)}
+${mustHavePrompt}
+${niceToHavePrompt}
 
 For each criterion, score 0-100 and explain briefly. Return ONLY valid JSON:
 {
@@ -342,7 +384,10 @@ For each criterion, score 0-100 and explain briefly. Return ONLY valid JSON:
       "score": 85,
       "reason": "brief explanation"
     }
-  }
+  },
+  "missing_must_haves": [],
+  "present_nice_to_haves": [],
+  "nice_to_have_bonus": 0
 }
 
 Score criteria contextually:
@@ -383,15 +428,38 @@ Score criteria contextually:
         }
       }
 
-      const finalScore =
+      let finalScore =
         totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 50;
-      return { score: finalScore, breakdown };
+
+      const missingMustHaves: string[] = data.missing_must_haves || [];
+      const presentNiceToHaves: string[] = data.present_nice_to_haves || [];
+      const niceToHaveBonus = Math.min(10, Math.max(0, data.nice_to_have_bonus || 0));
+      let mustHaveCapped = false;
+
+      // Cap score if must-haves are missing
+      if (missingMustHaves.length > 0) {
+        finalScore = Math.min(finalScore, 40);
+        mustHaveCapped = true;
+      }
+
+      // Add nice-to-have bonus (but don't exceed 100)
+      if (presentNiceToHaves.length > 0) {
+        finalScore = Math.min(100, finalScore + niceToHaveBonus);
+      }
+
+      return {
+        score: finalScore,
+        breakdown,
+        missing_must_haves: missingMustHaves,
+        present_nice_to_haves: presentNiceToHaves,
+        must_have_capped: mustHaveCapped,
+      };
     }
   } catch (e) {
     console.error("Failed to parse scoring:", e);
   }
 
-  return { score: 50, breakdown: {} };
+  return { score: 50, breakdown: {}, missing_must_haves: [], present_nice_to_haves: [], must_have_capped: false };
 }
 
 export async function generateNeighborhoodReport(

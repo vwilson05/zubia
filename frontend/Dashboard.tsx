@@ -82,6 +82,18 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                   <span>${listing.price?.toLocaleString()}/mo</span>
                   <span>{listing.bedrooms}BR / {listing.bathrooms}BA</span>
                 </div>
+                {listing.score_breakdown?._missing_must_haves?.length > 0 && (
+                  <div className="must-have-warning">
+                    <Icons.Warning /> Missing: {listing.score_breakdown._missing_must_haves.join(", ")}
+                  </div>
+                )}
+                {listing.score_breakdown?._present_nice_to_haves?.length > 0 && (
+                  <div className="nice-to-have-badges">
+                    Bonus: {listing.score_breakdown._present_nice_to_haves.map((item: string, i: number) => (
+                      <span key={i} className="nice-to-have-badge">{item}</span>
+                    ))}
+                  </div>
+                )}
               </div>
               <ScoreBadge score={listing.score || 0} size="medium" />
             </div>

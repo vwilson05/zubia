@@ -12,8 +12,8 @@ export function seedDemoData() {
 
   // Create demo user: Trang
   const userResult = db.run(
-    `INSERT INTO users (name, email, commute_address, budget_min, budget_max, priorities, bedrooms, bathrooms, pet_friendly, parking, laundry)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, email, commute_address, budget_min, budget_max, priorities, bedrooms, bathrooms, pet_friendly, parking, laundry, must_haves, nice_to_haves)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       "Trang",
       "trang@example.com",
@@ -32,6 +32,17 @@ export function seedDemoData() {
       1,
       "required",
       "in_unit",
+      JSON.stringify([
+        { id: "washer_dryer", label: "In-unit washer/dryer", type: "preset" },
+        { id: "backyard", label: "Backyard / outdoor space", type: "preset" },
+        { id: "parking", label: "Parking included", type: "preset" },
+        { id: "pet_friendly", label: "Pet-friendly", type: "preset" },
+      ]),
+      JSON.stringify([
+        { id: "pool", label: "Pool", type: "preset" },
+        { id: "extra_bathroom", label: "Extra bathroom (3+)", type: "preset" },
+        { id: "modern_kitchen", label: "Updated/modern kitchen", type: "preset" },
+      ]),
     ]
   );
   const userId = userResult.lastInsertRowid;

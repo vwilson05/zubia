@@ -133,10 +133,12 @@ const server = Bun.serve({
           bathrooms: user?.bathrooms,
           pet_friendly: user?.pet_friendly,
           priorities: parseJSON(user?.priorities),
+          must_haves: parseJSON(user?.must_haves) || [],
+          nice_to_haves: parseJSON(user?.nice_to_haves) || [],
         };
 
         const listingForScore = { ...extracted };
-        const { score, breakdown } = await scoreListing(
+        const { score, breakdown, missing_must_haves, present_nice_to_haves, must_have_capped } = await scoreListing(
           listingForScore,
           userPrefs
         );
@@ -169,7 +171,7 @@ const server = Bun.serve({
             extracted.landlord_contact || null,
             JSON.stringify(extracted),
             score,
-            JSON.stringify(breakdown),
+            JSON.stringify({ ...breakdown, _missing_must_haves: missing_must_haves || [], _present_nice_to_haves: present_nice_to_haves || [], _must_have_capped: must_have_capped || false }),
           ]
         );
 
@@ -208,6 +210,8 @@ const server = Bun.serve({
           bathrooms: user?.bathrooms,
           pet_friendly: user?.pet_friendly,
           priorities: parseJSON(user?.priorities),
+          must_haves: parseJSON(user?.must_haves) || [],
+          nice_to_haves: parseJSON(user?.nice_to_haves) || [],
         };
 
         // Detect source: Zillow URL, Redfin URL, or plain location string (defaults to Redfin)
@@ -403,15 +407,18 @@ const server = Bun.serve({
         bathrooms: user?.bathrooms,
         pet_friendly: user?.pet_friendly,
         priorities: parseJSON(user?.priorities),
+        must_haves: parseJSON(user?.must_haves) || [],
+        nice_to_haves: parseJSON(user?.nice_to_haves) || [],
       };
 
-      const { score, breakdown } = await scoreListing(listing, userPrefs);
+      const { score, breakdown, missing_must_haves, present_nice_to_haves, must_have_capped } = await scoreListing(listing, userPrefs);
+      const fullBreakdown = { ...breakdown, _missing_must_haves: missing_must_haves || [], _present_nice_to_haves: present_nice_to_haves || [], _must_have_capped: must_have_capped || false };
       db.run(
         "UPDATE listings SET score = ?, score_breakdown = ?, updated_at = datetime('now') WHERE id = ?",
-        [score, JSON.stringify(breakdown), id]
+        [score, JSON.stringify(fullBreakdown), id]
       );
 
-      return jsonResponse({ score, breakdown });
+      return jsonResponse({ score, breakdown: fullBreakdown });
     }
 
     // GET /api/listings/:id/neighborhood
@@ -544,6 +551,8 @@ const server = Bun.serve({
       return jsonResponse({
         ...user,
         priorities: parseJSON(user.priorities),
+        must_haves: parseJSON(user.must_haves) || [],
+        nice_to_haves: parseJSON(user.nice_to_haves) || [],
       });
     }
 
@@ -554,8 +563,8 @@ const server = Bun.serve({
 
       if (!user) {
         db.run(
-          `INSERT INTO users (name, email, commute_address, budget_min, budget_max, priorities, bedrooms, bathrooms, pet_friendly, parking, laundry)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO users (name, email, commute_address, budget_min, budget_max, priorities, bedrooms, bathrooms, pet_friendly, parking, laundry, must_haves, nice_to_haves)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             body.name || "User",
             body.email || null,
@@ -568,11 +577,13 @@ const server = Bun.serve({
             body.pet_friendly ? 1 : 0,
             body.parking || null,
             body.laundry || null,
+            JSON.stringify(body.must_haves || []),
+            JSON.stringify(body.nice_to_haves || []),
           ]
         );
       } else {
         db.run(
-          `UPDATE users SET name = ?, email = ?, commute_address = ?, budget_min = ?, budget_max = ?, priorities = ?, bedrooms = ?, bathrooms = ?, pet_friendly = ?, parking = ?, laundry = ? WHERE id = ?`,
+          `UPDATE users SET name = ?, email = ?, commute_address = ?, budget_min = ?, budget_max = ?, priorities = ?, bedrooms = ?, bathrooms = ?, pet_friendly = ?, parking = ?, laundry = ?, must_haves = ?, nice_to_haves = ? WHERE id = ?`,
           [
             body.name || user.name,
             body.email || user.email,
@@ -589,13 +600,20 @@ const server = Bun.serve({
               : user.pet_friendly,
             body.parking || user.parking,
             body.laundry || user.laundry,
+            JSON.stringify(body.must_haves ?? parseJSON(user.must_haves) ?? []),
+            JSON.stringify(body.nice_to_haves ?? parseJSON(user.nice_to_haves) ?? []),
             user.id,
           ]
         );
       }
 
       user = getUser();
-      return jsonResponse({ ...user, priorities: parseJSON(user.priorities) });
+      return jsonResponse({
+        ...user,
+        priorities: parseJSON(user.priorities),
+        must_haves: parseJSON(user.must_haves) || [],
+        nice_to_haves: parseJSON(user.nice_to_haves) || [],
+      });
     }
 
     // POST /api/applications
