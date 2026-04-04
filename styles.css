@@ -1629,6 +1629,62 @@ a:hover { text-decoration: underline; }
 .footer-tagline { color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 4px; }
 .footer-copy { color: var(--text-light); font-size: 0.8125rem; }
 
+/* ===== Mobile Top Bar & Sidebar Overlay ===== */
+.mobile-top-bar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: calc(56px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  gap: 12px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.hamburger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.hamburger-btn:hover {
+  background: var(--bg-teal);
+}
+
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+}
+.mobile-brand svg { color: var(--primary); width: 22px; height: 22px; }
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1640,12 +1696,24 @@ a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 768px) {
+  .mobile-top-bar {
+    display: flex;
+  }
   .sidebar {
-    display: none; /* Mobile: would need a hamburger menu, skipping for MVP */
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop {
+    display: block;
   }
   .main-content {
     margin-left: 0;
     padding: 20px 16px;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px) + 20px);
   }
   .hero-title { font-size: 2rem; }
   .hero { padding: 40px 16px; }

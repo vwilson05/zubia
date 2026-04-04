@@ -34,9 +34,11 @@ function getInitialPage(): Page {
 
 export default function App() {
   const [page, setPage] = useState<Page>(getInitialPage());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigate = (p: Page) => {
     setPage(p);
+    setSidebarOpen(false);
     const path = p === "landing" ? "/" : `/app${p === "dashboard" ? "" : `/${p}`}`;
     window.history.pushState({}, "", path);
   };
@@ -53,7 +55,21 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar">
+      <div className="mobile-top-bar">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <div className="mobile-brand" onClick={() => navigate("landing")}>
+          <Icons.Logo />
+          <span>zubia</span>
+        </div>
+      </div>
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand" onClick={() => navigate("landing")}>
           <Icons.Logo />
           <span>zubia</span>
