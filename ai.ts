@@ -93,6 +93,51 @@ export async function extractListingFromURL(url: string): Promise<ListingData> {
     }
   }
 
+  // For Redfin URLs, use Redfin RapidAPI property details endpoint
+  if (source === "redfin" && RAPIDAPI_KEY) {
+    try {
+      console.log("[API] Fetching property details from Redfin RapidAPI for:", url);
+      const apiUrl = `https://redfin-com-data.p.rapidapi.com/properties/detail-by-url?url=${encodeURIComponent(url)}`;
+      const res = await fetch(apiUrl, {
+        headers: {
+          "x-rapidapi-host": "redfin-com-data.p.rapidapi.com",
+          "x-rapidapi-key": RAPIDAPI_KEY,
+        },
+      });
+      const data = await res.json();
+
+      if (data && data.data) {
+        const d = data.data;
+        const addrInfo = d.aboveTheFold?.addressSectionInfo || {};
+        const about = d.about || {};
+        const photos = d.gallery?.photos?.map((p: any) => p.photoUrl || p.url) || [];
+        const pricing = d.aboveTheFold?.priceInfo || d.rental || {};
+
+        return {
+          address: addrInfo.streetAddress || addrInfo.address || null,
+          city: addrInfo.city || null,
+          neighborhood: addrInfo.neighborhood || null,
+          price: pricing.amount || pricing.price || addrInfo.price || null,
+          bedrooms: addrInfo.beds || addrInfo.bedrooms || null,
+          bathrooms: addrInfo.baths || addrInfo.bathrooms || null,
+          sqft: addrInfo.sqFt || addrInfo.sqft || null,
+          description: about.description || about.text || null,
+          pet_policy: null,
+          parking: null,
+          laundry: null,
+          available_date: null,
+          landlord_name: null,
+          landlord_contact: null,
+          photos,
+          source: "redfin",
+        };
+      }
+      console.log("[API] Redfin RapidAPI returned no property data, falling back to URL parsing");
+    } catch (e) {
+      console.error("[API] Redfin RapidAPI property details error:", e);
+    }
+  }
+
   // Fallback: extract what we can from the URL structure
   let address = null;
   let city = null;
@@ -169,6 +214,71 @@ export async function searchListingsByURL(
   }
 
   return data as SearchResponse;
+}
+
+export async function searchRedfinListings(
+  location: string,
+  page: number = 1
+): Promise<SearchResponse> {
+  const apiKey = process.env.RAPIDAPI_KEY;
+  if (!apiKey) {
+    throw new Error("RAPIDAPI_KEY is not configured");
+  }
+
+  const encodedLocation = encodeURIComponent(location);
+  const response = await fetch(
+    `https://redfin-com-data.p.rapidapi.com/property/search-rent?location=${encodedLocation}&page=${page}`,
+    {
+      headers: {
+        "x-rapidapi-host": "redfin-com-data.p.rapidapi.com",
+        "x-rapidapi-key": apiKey,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Redfin RapidAPI request failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+
+  // Map Redfin response to our SearchResponse format
+  const listings = data.data?.listings || data.listings || data.results || [];
+  const results: SearchResult[] = listings.map((item: any, idx: number) => {
+    const addr = item.address || {};
+    return {
+      id: item.listingId || item.propertyId || item.mlsId || `redfin-${idx}`,
+      price: item.price ? `$${Number(item.price).toLocaleString()}/mo` : "N/A",
+      unformattedPrice: Number(item.price) || 0,
+      beds: item.beds || item.bedrooms || 0,
+      baths: item.baths || item.bathrooms || 0,
+      area: item.sqFt || item.sqft || item.area || 0,
+      livingArea: item.sqFt || item.sqft || item.area || 0,
+      homeType: item.propertyType || item.homeType || "Home",
+      address: {
+        street: addr.streetAddress || addr.street || item.streetAddress || "",
+        city: addr.city || item.city || "",
+        state: addr.state || item.state || "",
+        zipcode: addr.zip || addr.zipcode || item.zip || "",
+      },
+      latLong: {
+        latitude: item.latitude || item.lat || 0,
+        longitude: item.longitude || item.lng || 0,
+      },
+      imgSrc: item.photoUrl || item.imgSrc || item.thumbnail || "",
+      detailUrl: item.url || item.detailUrl || "",
+      daysOnZillow: item.daysOnMarket || item.dom || 0,
+    };
+  });
+
+  return {
+    success: true,
+    totalCount: data.data?.totalCount || data.totalCount || results.length,
+    filteredCount: data.data?.filteredCount || data.filteredCount || results.length,
+    currentPage: String(page),
+    results,
+  };
 }
 
 export async function scoreListing(

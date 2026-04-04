@@ -3,6 +3,7 @@ import { seedDemoData } from "./seed-demo";
 import {
   extractListingFromURL,
   searchListingsByURL,
+  searchRedfinListings,
   scoreListing,
   generateNeighborhoodReport,
   generateComparison,
@@ -191,12 +192,12 @@ const server = Bun.serve({
       }
     }
 
-    // POST /api/listings/import-search — Bulk import from Zillow search URL
+    // POST /api/listings/import-search — Bulk import from Zillow or Redfin search URL
     if (pathname === "/api/listings/import-search" && method === "POST") {
       try {
         const body = await req.json();
         const { url: searchUrl, page } = body;
-        if (!searchUrl) return errorResponse("Zillow search URL is required");
+        if (!searchUrl) return errorResponse("Search URL or location is required");
 
         const user = getUser();
         const userPrefs = {
@@ -209,7 +210,16 @@ const server = Bun.serve({
           priorities: parseJSON(user?.priorities),
         };
 
-        const searchData = await searchListingsByURL(searchUrl, page || 1);
+        // Detect source: Zillow URL, Redfin URL, or plain location string (defaults to Redfin)
+        const isRedfin = searchUrl.includes("redfin.com") || (!searchUrl.includes("zillow.com") && !searchUrl.startsWith("http"));
+        let searchData;
+        if (isRedfin) {
+          // For Redfin URLs or plain location strings, use Redfin search
+          const location = searchUrl.startsWith("http") ? searchUrl : searchUrl;
+          searchData = await searchRedfinListings(location, page || 1);
+        } else {
+          searchData = await searchListingsByURL(searchUrl, page || 1);
+        }
 
         // Score each result using a lightweight in-memory scoring approach
         const scoredResults = await Promise.all(
@@ -261,13 +271,14 @@ const server = Bun.serve({
 
         for (const item of listings) {
           const fullAddress = `${item.address.street}, ${item.address.city}, ${item.address.state} ${item.address.zipcode}`;
+          const listingSource = (item.detailUrl || "").includes("redfin.com") ? "redfin" : "zillow";
           const result = db.run(
             `INSERT INTO listings (user_id, url, source, address, city, neighborhood, price, bedrooms, bathrooms, sqft, photos, description, pet_policy, parking, laundry, available_date, landlord_name, landlord_contact, raw_data, score, score_breakdown, status)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved')`,
             [
               user?.id || 1,
               item.detailUrl || null,
-              "zillow",
+              listingSource,
               item.address.street || null,
               `${item.address.city}, ${item.address.state} ${item.address.zipcode}`,
               null,

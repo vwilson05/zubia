@@ -137,7 +137,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
         <div>
           <h1>Import Listings</h1>
           <p className="text-secondary">
-            Search Zillow with your filters, then import the results
+            Search Zillow or Redfin with your filters, then import the results
           </p>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste your Zillow search URL (with filters applied)..."
+              placeholder="Paste a Zillow or Redfin URL, or type a location to search Redfin..."
               className="input-field input-lg"
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
@@ -164,7 +164,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
           </button>
         </div>
         <p className="text-secondary" style={{ fontSize: "13px", marginTop: "8px" }}>
-          Go to Zillow, set your filters (price, beds, area, etc.), then copy the URL from your browser
+          Paste a Zillow or Redfin search URL, or type a location (e.g. "San Francisco, CA") to search Redfin rentals
         </p>
 
         {loading && (
@@ -172,7 +172,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
             <div className="loading-spinner" />
             <div className="loading-steps">
               <p className={`loading-step ${loadingStep >= 1 ? "active" : ""}`}>
-                <Icons.Search /> Fetching search results from Zillow...
+                <Icons.Search /> Fetching search results...
               </p>
               <p className={`loading-step ${loadingStep >= 2 ? "active" : ""}`}>
                 <Icons.Score /> Scoring each listing against your criteria...
@@ -325,7 +325,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
                       <span>{(r.livingArea || r.area || 0).toLocaleString()} sqft</span>
                       {r.daysOnZillow > 0 && (
                         <span className="text-secondary">
-                          {r.daysOnZillow}d on Zillow
+                          {r.daysOnZillow}d on market
                         </span>
                       )}
                       <span className="text-secondary">{r.homeType}</span>
