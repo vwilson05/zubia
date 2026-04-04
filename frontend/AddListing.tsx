@@ -150,7 +150,7 @@ export default function AddListing({ onNavigate }: AddListingProps) {
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a Zillow or Redfin URL, or type a location to search Redfin..."
+              placeholder="Paste a Zillow/Redfin URL, or type a location (e.g. san-jose-ca)..."
               className="input-field input-lg"
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />

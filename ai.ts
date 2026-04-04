@@ -249,6 +249,56 @@ export async function searchListingsByURL(
   return data as SearchResponse;
 }
 
+export async function searchListingsByLocation(
+  location: string,
+  options: {
+    listType?: string;
+    beds?: number;
+    baths?: number;
+    minPrice?: number;
+    maxPrice?: number;
+    page?: number;
+  } = {}
+): Promise<SearchResponse> {
+  const apiKey = process.env.RAPIDAPI_KEY;
+  if (!apiKey) {
+    throw new Error("RAPIDAPI_KEY is not configured");
+  }
+
+  const params = new URLSearchParams();
+  params.set("location", location);
+  params.set("listType", options.listType || "for-rent");
+  params.set("page", String(options.page || 1));
+  if (options.beds) params.set("beds", String(options.beds));
+  if (options.baths) params.set("baths", String(options.baths));
+  if (options.minPrice) params.set("minPrice", String(options.minPrice));
+  if (options.maxPrice) params.set("maxPrice", String(options.maxPrice));
+
+  console.log(`[API] Zillow location search: ${location}, params: ${params.toString()}`);
+
+  const response = await fetch(
+    `https://real-estate101.p.rapidapi.com/api/search?${params.toString()}`,
+    {
+      headers: {
+        "x-rapidapi-host": "real-estate101.p.rapidapi.com",
+        "x-rapidapi-key": apiKey,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`RapidAPI location search failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Location search returned unsuccessful response");
+  }
+
+  return data as SearchResponse;
+}
+
 export async function searchRedfinListings(
   location: string,
   page: number = 1

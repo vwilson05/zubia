@@ -3,6 +3,7 @@ import { seedDemoData } from "./seed-demo";
 import {
   extractListingFromURL,
   searchListingsByURL,
+  searchListingsByLocation,
   searchRedfinListings,
   scoreListing,
   generateNeighborhoodReport,
@@ -214,15 +215,28 @@ const server = Bun.serve({
           nice_to_haves: parseJSON(user?.nice_to_haves) || [],
         };
 
-        // Detect source: Zillow URL, Redfin URL, or plain location string (defaults to Redfin)
-        const isRedfin = searchUrl.includes("redfin.com") || (!searchUrl.includes("zillow.com") && !searchUrl.startsWith("http"));
+        // Detect source: Zillow URL, Redfin URL, or plain location string
+        const isZillowUrl = searchUrl.includes("zillow.com");
+        const isRedfinUrl = searchUrl.includes("redfin.com");
+        const isUrl = searchUrl.startsWith("http");
         let searchData;
-        if (isRedfin) {
-          // For Redfin URLs or plain location strings, use Redfin search
-          const location = searchUrl.startsWith("http") ? searchUrl : searchUrl;
-          searchData = await searchRedfinListings(location, page || 1);
-        } else {
+
+        if (isZillowUrl) {
+          // Zillow search URL with filters
           searchData = await searchListingsByURL(searchUrl, page || 1);
+        } else if (isRedfinUrl) {
+          // Redfin URL
+          searchData = await searchRedfinListings(searchUrl, page || 1);
+        } else {
+          // Plain location string (e.g., "san-jose-ca") — use Zillow location search with user prefs
+          searchData = await searchListingsByLocation(searchUrl, {
+            listType: "for-rent",
+            beds: userPrefs.bedrooms || undefined,
+            baths: userPrefs.bathrooms || undefined,
+            minPrice: userPrefs.budget_min || undefined,
+            maxPrice: userPrefs.budget_max || undefined,
+            page: page || 1,
+          });
         }
 
         // Score each result using a lightweight in-memory scoring approach
