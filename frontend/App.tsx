@@ -53,90 +53,57 @@ export default function App() {
     return <Landing onNavigate={navigate} />;
   }
 
+  const navItems = [
+    { id: "dashboard" as Page, label: "Dashboard", icon: <Icons.Dashboard /> },
+    { id: "add" as Page, label: "Add Listing", icon: <Icons.Add /> },
+    { id: "listings" as Page, label: "My Listings", icon: <Icons.Listings /> },
+    { id: "compare" as Page, label: "Compare", icon: <Icons.Compare /> },
+    { id: "applications" as Page, label: "Applications", icon: <Icons.Applications /> },
+    { id: "advisor" as Page, label: "AI Advisor", icon: <Icons.Advisor /> },
+    { id: "settings" as Page, label: "Settings", icon: <Icons.Settings /> },
+  ];
+
   return (
-    <>
-      <div className="mobile-top-bar">
-        <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle menu">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
-        <div className="mobile-brand" onClick={() => navigate("landing")}>
-          <Icons.Logo />
-          <span>zubia</span>
-        </div>
-      </div>
-      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
     <div className="app-layout">
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-brand" onClick={() => navigate("landing")}>
-          <Icons.Logo />
-          <span>zubia</span>
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-brand" onClick={() => navigate("landing")}>
+            <Icons.Logo />
+            <span>zubia</span>
+          </div>
+          <button className="sidebar-close" onClick={() => setSidebarOpen(false)}>&times;</button>
         </div>
         <nav className="sidebar-nav">
-          <button
-            className={`nav-item ${page === "dashboard" ? "active" : ""}`}
-            onClick={() => navigate("dashboard")}
-          >
-            <Icons.Dashboard />
-            <span>Dashboard</span>
-          </button>
-          <button
-            className={`nav-item ${page === "add" ? "active" : ""}`}
-            onClick={() => navigate("add")}
-          >
-            <Icons.Add />
-            <span>Add Listing</span>
-          </button>
-          <button
-            className={`nav-item ${page === "listings" ? "active" : ""}`}
-            onClick={() => navigate("listings")}
-          >
-            <Icons.Listings />
-            <span>My Listings</span>
-          </button>
-          <button
-            className={`nav-item ${page === "compare" ? "active" : ""}`}
-            onClick={() => navigate("compare")}
-          >
-            <Icons.Compare />
-            <span>Compare</span>
-          </button>
-          <button
-            className={`nav-item ${page === "applications" ? "active" : ""}`}
-            onClick={() => navigate("applications")}
-          >
-            <Icons.Applications />
-            <span>Applications</span>
-          </button>
-          <button
-            className={`nav-item ${page === "advisor" ? "active" : ""}`}
-            onClick={() => navigate("advisor")}
-          >
-            <Icons.Advisor />
-            <span>AI Advisor</span>
-          </button>
-          <button
-            className={`nav-item ${page === "settings" ? "active" : ""}`}
-            onClick={() => navigate("settings")}
-          >
-            <Icons.Settings />
-            <span>Settings</span>
-          </button>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item ${page === item.id ? "active" : ""}`}
+              onClick={() => navigate(item.id)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
         </nav>
       </aside>
       <main className="main-content">
-        {page === "dashboard" && <Dashboard onNavigate={navigate} />}
-        {page === "listings" && <Listings onNavigate={navigate} />}
-        {page === "add" && <AddListing onNavigate={navigate} />}
-        {page === "compare" && <Compare />}
-        {page === "applications" && <Applications />}
-        {page === "advisor" && <Advisor />}
-        {page === "settings" && <Settings />}
+        <header className="topbar">
+          <button className="hamburger" onClick={() => setSidebarOpen(true)}>
+            <span /><span /><span />
+          </button>
+          <h2 className="topbar-title">{navItems.find(n => n.id === page)?.label || "Dashboard"}</h2>
+        </header>
+        <div className="page-content">
+          {page === "dashboard" && <Dashboard onNavigate={navigate} />}
+          {page === "listings" && <Listings onNavigate={navigate} />}
+          {page === "add" && <AddListing onNavigate={navigate} />}
+          {page === "compare" && <Compare />}
+          {page === "applications" && <Applications />}
+          {page === "advisor" && <Advisor />}
+          {page === "settings" && <Settings />}
+        </div>
       </main>
     </div>
-    </>
   );
 }
