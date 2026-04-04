@@ -58,6 +58,32 @@ interface ScoringResult {
   must_have_capped?: boolean;
 }
 
+async function resolveShortURL(url: string): Promise<string> {
+  // Resolve short links (redf.in, zillow.com/homedetails/...) to full URLs
+  const shortDomains = ["redf.in", "zill.ow", "bit.ly", "t.co"];
+  const isShort = shortDomains.some(d => url.includes(d));
+  if (!isShort) return url;
+
+  try {
+    console.log(`[URL] Resolving short link: ${url}`);
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "manual",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+      },
+    });
+    const location = res.headers.get("location");
+    if (location && !location.includes("ratelimited")) {
+      console.log(`[URL] Resolved to: ${location}`);
+      return location;
+    }
+  } catch (e) {
+    console.error("[URL] Short link resolution failed:", e);
+  }
+  return url;
+}
+
 function cleanListingURL(url: string): string {
   // Strip UTM params, share tracking, and other junk from listing URLs
   try {
@@ -75,7 +101,8 @@ function cleanListingURL(url: string): string {
 }
 
 export async function extractListingFromURL(rawUrl: string): Promise<ListingData> {
-  const url = cleanListingURL(rawUrl);
+  const resolved = await resolveShortURL(rawUrl);
+  const url = cleanListingURL(resolved);
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || "";
 
   // Detect source
