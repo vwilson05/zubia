@@ -43,115 +43,75 @@ interface ScoreBreakdown {
 }
 
 export async function extractListingFromURL(url: string): Promise<ListingData> {
-  // Try to fetch page content. Sites like Zillow block server-side requests,
-  // so we also extract what we can from the URL structure itself.
-  let pageContent = "";
-  let fetchFailed = false;
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      redirect: "follow",
-    });
-    const text = await response.text();
-    // Check if we got actual content or just a JS shell
-    if (text.length > 1000 && (text.includes("bedrooms") || text.includes("price") || text.includes("rent") || text.includes("sqft") || text.includes("bath"))) {
-      pageContent = text.substring(0, 50000);
-    } else {
-      fetchFailed = true;
-      pageContent = `[Page content was blocked or requires JavaScript rendering. Extract data from URL structure and any metadata available.]`;
-    }
-  } catch (e) {
-    fetchFailed = true;
-    pageContent = `[Failed to fetch: ${e}]`;
-  }
+  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || "";
 
-  // Extract info from URL structure (Zillow, Redfin encode address in URL)
-  let urlHints = "";
-  try {
-    const urlPath = new URL(url).pathname;
-    // Zillow: /homedetails/742-Castro-St-San-Francisco-CA-94114/15063122_zpid/
-    // Redfin: /CA/San-Francisco/742-Castro-St-94114/home/1234567
-    const addressMatch = urlPath.match(/\/(\d+[-\w]+-(?:St|Ave|Rd|Dr|Ln|Blvd|Way|Ct|Pl|Cir|Ter|Loop)[-\w]*)/i);
-    if (addressMatch) {
-      const addr = addressMatch[1].replace(/-/g, " ");
-      urlHints += `Address from URL: ${addr}\n`;
-    }
-    // Extract city/state from URL
-    const parts = urlPath.split("/").filter(Boolean);
-    if (parts.length > 2) {
-      urlHints += `URL path parts: ${parts.join(", ")}\n`;
-    }
-  } catch {}
-
-  if (urlHints) {
-    pageContent += `\n\nURL-derived hints:\n${urlHints}`;
-  }
-
-  // Detect source from URL
+  // Detect source
   let source = "other";
   if (url.includes("zillow.com")) source = "zillow";
   else if (url.includes("redfin.com")) source = "redfin";
   else if (url.includes("craigslist.org")) source = "craigslist";
   else if (url.includes("apartments.com")) source = "apartments";
 
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2000,
-    messages: [
-      {
-        role: "user",
-        content: `Extract structured rental listing data from this URL and any available page content.
+  // For Zillow URLs, use RapidAPI property details endpoint
+  if (source === "zillow" && RAPIDAPI_KEY) {
+    try {
+      console.log("[API] Fetching property details from RapidAPI for:", url);
+      const apiUrl = `https://real-estate101.p.rapidapi.com/api/property-details/byurl?url=${encodeURIComponent(url)}`;
+      const res = await fetch(apiUrl, {
+        headers: {
+          "x-rapidapi-host": "real-estate101.p.rapidapi.com",
+          "x-rapidapi-key": RAPIDAPI_KEY,
+        },
+      });
+      const data = await res.json();
 
-URL: ${url}
-Source platform: ${source}
-${fetchFailed ? "NOTE: The page could not be fully fetched (JavaScript rendering required). Extract what you can from the URL structure, metadata, and any partial content below." : ""}
-
-Page content:
-${pageContent}
-
-IMPORTANT: Even if page content is limited, extract what you can from the URL itself. Zillow and Redfin encode the address in the URL path (e.g., /homedetails/742-Castro-St-San-Francisco-CA-94114/). Parse the address, city, and state from the URL.
-
-Return ONLY valid JSON with these fields (use null for truly unavailable data, but try hard to extract the address):
-{
-  "address": "full street address",
-  "city": "city name",
-  "neighborhood": "neighborhood if mentioned",
-  "price": monthly_rent_as_number,
-  "bedrooms": number,
-  "bathrooms": number,
-  "sqft": square_footage_as_number,
-  "description": "brief description of the property",
-  "pet_policy": "pet policy details or null",
-  "parking": "parking details or null",
-  "laundry": "laundry details or null",
-  "available_date": "move-in date or null",
-  "landlord_name": "landlord/property manager name or null",
-  "landlord_contact": "contact info or null",
-  "photos": ["array of photo URLs found"]
-}`,
-      },
-    ],
-  });
-
-  try {
-    const text =
-      message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
-      data.source = source;
-      return data;
+      if (data.success && data.property) {
+        const p = data.property;
+        const addr = p.address || {};
+        return {
+          address: addr.streetAddress || null,
+          city: addr.city || null,
+          neighborhood: p.neighborhood || null,
+          price: p.price || p.rentZestimate || null,
+          bedrooms: p.bedrooms || null,
+          bathrooms: p.bathrooms || null,
+          sqft: p.livingArea?.value || p.livingArea || null,
+          description: p.description || null,
+          pet_policy: null,
+          parking: p.facts_features?.exterior?.parking ? JSON.stringify(p.facts_features.exterior.parking) : null,
+          laundry: p.facts_features?.interior?.appliances?.includes("Washer") ? "In-unit" : null,
+          available_date: null,
+          landlord_name: p.agent?.name || null,
+          landlord_contact: p.agent?.phone || null,
+          photos: p.photos || [],
+          source: "zillow",
+        };
+      }
+      console.log("[API] RapidAPI returned no property data, falling back to URL parsing");
+    } catch (e) {
+      console.error("[API] RapidAPI property details error:", e);
     }
-  } catch (e) {
-    console.error("Failed to parse listing extraction:", e);
   }
 
-  return { source };
+  // Fallback: extract what we can from the URL structure
+  let address = null;
+  let city = null;
+  try {
+    const urlPath = new URL(url).pathname;
+    const parts = urlPath.split("/").filter(Boolean);
+    // Zillow: homedetails/742-Castro-St-San-Francisco-CA-94114/15063122_zpid
+    if (parts.length >= 2) {
+      const addrPart = parts.find(p => /\d+.*(?:St|Ave|Rd|Dr|Ln|Blvd|Way|Ct|Pl)/.test(p));
+      if (addrPart) {
+        address = addrPart.replace(/-/g, " ");
+        // Try to extract city from the address string
+        const cityMatch = addrPart.match(/(?:St|Ave|Rd|Dr|Ln|Blvd|Way|Ct|Pl)-(.+?)-[A-Z]{2}-\d{5}/i);
+        if (cityMatch) city = cityMatch[1].replace(/-/g, " ");
+      }
+    }
+  } catch {}
+
+  return { address, city, source };
 }
 
 export interface SearchResult {
