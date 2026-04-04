@@ -99,7 +99,7 @@ const server = Bun.serve({
     if (pathname === "/styles.css") {
       const cssPath = path.join(import.meta.dir, "styles.css");
       return new Response(Bun.file(cssPath), {
-        headers: { "Content-Type": "text/css" },
+        headers: { "Content-Type": "text/css", "Cache-Control": "no-cache, must-revalidate" },
       });
     }
 
