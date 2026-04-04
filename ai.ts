@@ -42,7 +42,24 @@ interface ScoreBreakdown {
   };
 }
 
-export async function extractListingFromURL(url: string): Promise<ListingData> {
+function cleanListingURL(url: string): string {
+  // Strip UTM params, share tracking, and other junk from listing URLs
+  try {
+    const u = new URL(url);
+    const paramsToRemove = [...u.searchParams.keys()].filter(k =>
+      k.startsWith("utm_") || k.match(/^\d+$/) || k === "utm_source" || k === "utm_medium" ||
+      k === "utm_campaign" || k === "utm_content" || k === "utm_nooverride" ||
+      k === "fbclid" || k === "gclid" || k === "ref"
+    );
+    paramsToRemove.forEach(k => u.searchParams.delete(k));
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+export async function extractListingFromURL(rawUrl: string): Promise<ListingData> {
+  const url = cleanListingURL(rawUrl);
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || "";
 
   // Detect source
