@@ -187,16 +187,34 @@ export async function extractListingFromURL(rawUrl: string): Promise<ListingData
           } catch {}
         }
 
-        // Get rent price (latestPriceInfo for rentals, or rental listing data)
-        const rentListings = d.rental?.listings || d.rental?.units || [];
+        // Get rent price — check multiple locations in the Redfin response
         let rentPrice = null;
-        if (rentListings.length > 0) {
-          rentPrice = rentListings[0]?.price || rentListings[0]?.rent || null;
+
+        // 1. Check property history events for rental listings (most reliable)
+        const historyEvents = d.belowTheFold?.propertyHistoryInfo?.events || [];
+        for (const event of historyEvents) {
+          const price = event.price;
+          // Rental prices are typically $1K-$15K/mo, sale prices are $100K+
+          if (typeof price === "number" && price >= 500 && price <= 20000) {
+            rentPrice = price;
+            break;
+          }
         }
-        // Fallback to priceInfo amount if it looks like a rent (< $10K/mo)
-        const priceAmount = typeof priceInfo.amount === "number" ? priceInfo.amount : (typeof latestPrice.amount === "number" ? latestPrice.amount : null);
-        if (!rentPrice && priceAmount && priceAmount < 10000) {
-          rentPrice = priceAmount;
+
+        // 2. Check rental listings data
+        if (!rentPrice) {
+          const rentListings = d.rental?.listings || d.rental?.units || [];
+          if (rentListings.length > 0) {
+            rentPrice = rentListings[0]?.price || rentListings[0]?.rent || null;
+          }
+        }
+
+        // 3. Fallback to priceInfo if it looks like a rent amount
+        if (!rentPrice) {
+          const amt = typeof latestPrice.amount === "number" ? latestPrice.amount : (typeof priceInfo.amount === "number" ? priceInfo.amount : null);
+          if (amt && amt >= 500 && amt <= 20000) {
+            rentPrice = amt;
+          }
         }
 
         // Get sqft as a number
