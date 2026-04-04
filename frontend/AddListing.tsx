@@ -6,7 +6,9 @@ interface AddListingProps {
 }
 
 export default function AddListing({ onNavigate }: AddListingProps) {
+  const [mode, setMode] = useState<"url" | "paste">("url");
   const [url, setUrl] = useState("");
+  const [pasteText, setPasteText] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<any>(null);
@@ -14,29 +16,32 @@ export default function AddListing({ onNavigate }: AddListingProps) {
   const [saved, setSaved] = useState(false);
 
   const handleAnalyze = async () => {
-    if (!url.trim()) return;
+    const input = mode === "url" ? url.trim() : pasteText.trim();
+    if (!input) return;
     setLoading(true);
     setError(null);
     setResult(null);
     setSaved(false);
     setLoadingStep(1);
 
-    // Simulate loading steps
     const timer1 = setTimeout(() => setLoadingStep(2), 3000);
     const timer2 = setTimeout(() => setLoadingStep(3), 6000);
 
     try {
+      const body = mode === "url"
+        ? { url: input }
+        : { url: "pasted-description", pastedText: input };
       const res = await fetch("/api/listings/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
         setResult(data);
-        setSaved(true); // Auto-saved
+        setSaved(true);
       }
     } catch (e: any) {
       setError(e.message || "Failed to analyze listing");
@@ -58,26 +63,62 @@ export default function AddListing({ onNavigate }: AddListingProps) {
       </div>
 
       <div className="add-form-card">
-        <div className="add-url-row">
-          <div className="add-url-input">
-            <Icons.Link />
-            <input
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste a Zillow, Redfin, Craigslist, or any listing URL..."
-              className="input-field input-lg"
-              onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-            />
-          </div>
+        <div className="add-mode-toggle">
           <button
-            className="btn btn-primary btn-lg"
-            onClick={handleAnalyze}
-            disabled={loading || !url.trim()}
+            className={`mode-btn ${mode === "url" ? "mode-active" : ""}`}
+            onClick={() => setMode("url")}
           >
-            {loading ? "Analyzing..." : "Analyze"}
+            <Icons.Link /> Paste URL
+          </button>
+          <button
+            className={`mode-btn ${mode === "paste" ? "mode-active" : ""}`}
+            onClick={() => setMode("paste")}
+          >
+            <Icons.Document /> Paste Description
           </button>
         </div>
+
+        {mode === "url" ? (
+          <div className="add-url-row">
+            <div className="add-url-input">
+              <Icons.Link />
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Paste a Zillow, Redfin, Craigslist, or any listing URL..."
+                className="input-field input-lg"
+                onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
+              />
+            </div>
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={handleAnalyze}
+              disabled={loading || !url.trim()}
+            >
+              {loading ? "Analyzing..." : "Analyze"}
+            </button>
+          </div>
+        ) : (
+          <div className="add-paste-area">
+            <p className="paste-hint">Copy the listing description from Zillow, Redfin, or any site and paste it here. Include the address, price, and details — AI will extract everything.</p>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"Example:\n\n$3,800/mo · 3 bed · 2 bath · 1,200 sqft\n742 Castro St, Mountain View, CA 94041\n\nBeautiful 3BR/2BA home in downtown Mountain View. Walking distance to Castro St restaurants and shops. Updated kitchen, hardwood floors, private backyard. Small dogs OK with deposit. 1 covered parking spot. Available May 1st."}
+              className="paste-textarea"
+              rows={10}
+            />
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={handleAnalyze}
+              disabled={loading || !pasteText.trim()}
+              style={{ width: "100%", marginTop: "12px" }}
+            >
+              {loading ? "Analyzing..." : "Analyze Listing"}
+            </button>
+          </div>
+        )}
 
         {loading && (
           <div className="loading-card">

@@ -2,6 +2,7 @@ import db from "./db";
 import { seedDemoData } from "./seed-demo";
 import {
   extractListingFromURL,
+  extractListingFromText,
   scoreListing,
   generateNeighborhoodReport,
   generateComparison,
@@ -115,11 +116,17 @@ const server = Bun.serve({
     if (pathname === "/api/listings/add" && method === "POST") {
       try {
         const body = await req.json();
-        const { url: listingUrl } = body;
-        if (!listingUrl) return errorResponse("URL is required");
+        const { url: listingUrl, pastedText } = body;
+        if (!listingUrl && !pastedText) return errorResponse("URL or description is required");
 
         const user = getUser();
-        const extracted = await extractListingFromURL(listingUrl);
+        let extracted;
+        if (pastedText) {
+          // Parse pasted listing description with Claude
+          extracted = await extractListingFromText(pastedText);
+        } else {
+          extracted = await extractListingFromURL(listingUrl);
+        }
 
         // Score the listing
         const userPrefs = {

@@ -154,6 +154,55 @@ Return ONLY valid JSON with these fields (use null for truly unavailable data, b
   return { source };
 }
 
+export async function extractListingFromText(text: string): Promise<ListingData> {
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2000,
+    messages: [
+      {
+        role: "user",
+        content: `Extract structured rental listing data from this pasted listing description.
+
+Listing text:
+${text}
+
+Return ONLY valid JSON with these fields (use null for unavailable data):
+{
+  "address": "full street address",
+  "city": "city name",
+  "neighborhood": "neighborhood if mentioned",
+  "price": monthly_rent_as_number,
+  "bedrooms": number,
+  "bathrooms": number,
+  "sqft": square_footage_as_number,
+  "description": "brief description of the property",
+  "pet_policy": "pet policy details or null",
+  "parking": "parking details or null",
+  "laundry": "laundry details or null",
+  "available_date": "move-in date or null",
+  "landlord_name": "landlord/property manager name or null",
+  "landlord_contact": "contact info or null",
+  "photos": []
+}`,
+      },
+    ],
+  });
+
+  try {
+    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const data = JSON.parse(jsonMatch[0]);
+      data.source = "pasted";
+      return data;
+    }
+  } catch (e) {
+    console.error("Failed to parse pasted listing:", e);
+  }
+
+  return { source: "pasted" };
+}
+
 export async function scoreListing(
   listing: any,
   userPrefs: UserPreferences
