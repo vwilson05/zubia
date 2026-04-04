@@ -1695,7 +1695,7 @@ a:hover { text-decoration: underline; }
   .settings-grid { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .mobile-top-bar {
     display: flex;
   }
