@@ -5,46 +5,74 @@ interface AddListingProps {
   onNavigate: (page: any) => void;
 }
 
+interface SearchResultItem {
+  id: string;
+  price: string;
+  unformattedPrice: number;
+  beds: number;
+  baths: number;
+  area: number;
+  livingArea: number;
+  homeType: string;
+  address: { street: string; city: string; state: string; zipcode: string };
+  latLong: { latitude: number; longitude: number };
+  imgSrc: string;
+  detailUrl: string;
+  daysOnZillow: number;
+  score: number;
+  scoreBreakdown: any;
+}
+
 export default function AddListing({ onNavigate }: AddListingProps) {
-  const [mode, setMode] = useState<"url" | "paste">("url");
   const [url, setUrl] = useState("");
-  const [pasteText, setPasteText] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [result, setResult] = useState<any>(null);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [filteredCount, setFilteredCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchUrl, setSearchUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [importResult, setImportResult] = useState<{ count: number } | null>(null);
 
-  const handleAnalyze = async () => {
-    const input = mode === "url" ? url.trim() : pasteText.trim();
+  const handleSearch = async (page: number = 1) => {
+    const input = url.trim();
     if (!input) return;
     setLoading(true);
     setError(null);
-    setResult(null);
-    setSaved(false);
+    setImportResult(null);
+    if (page === 1) {
+      setResults([]);
+      setSelected(new Set());
+    }
     setLoadingStep(1);
 
     const timer1 = setTimeout(() => setLoadingStep(2), 3000);
-    const timer2 = setTimeout(() => setLoadingStep(3), 6000);
+    const timer2 = setTimeout(() => setLoadingStep(3), 8000);
 
     try {
-      const body = mode === "url"
-        ? { url: input }
-        : { url: "pasted-description", pastedText: input };
-      const res = await fetch("/api/listings/add", {
+      const res = await fetch("/api/listings/import-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ url: input, page }),
       });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
-        setResult(data);
-        setSaved(true);
+        setResults(data.results || []);
+        setTotalCount(data.totalCount || 0);
+        setFilteredCount(data.filteredCount || 0);
+        setCurrentPage(data.currentPage || 1);
+        setSearchUrl(input);
+        // Auto-select all by default
+        const allIds = new Set((data.results || []).map((r: SearchResultItem) => r.id));
+        setSelected(allIds);
       }
     } catch (e: any) {
-      setError(e.message || "Failed to analyze listing");
+      setError(e.message || "Failed to search");
     }
 
     clearTimeout(timer1);
@@ -53,85 +81,104 @@ export default function AddListing({ onNavigate }: AddListingProps) {
     setLoadingStep(0);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === results.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(results.map((r) => r.id)));
+    }
+  };
+
+  const handleBulkSave = async () => {
+    const selectedListings = results.filter((r) => selected.has(r.id));
+    if (selectedListings.length === 0) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/listings/bulk-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listings: selectedListings }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setImportResult({ count: data.count });
+      }
+    } catch (e: any) {
+      setError(e.message || "Failed to save listings");
+    }
+
+    setSaving(false);
+  };
+
+  const handlePageChange = (page: number) => {
+    handleSearch(page);
+  };
+
   return (
     <div className="page add-page">
       <div className="page-header">
         <div>
-          <h1>Add Listing</h1>
-          <p className="text-secondary">Paste a URL from any listing site</p>
+          <h1>Import Listings</h1>
+          <p className="text-secondary">
+            Search Zillow with your filters, then import the results
+          </p>
         </div>
       </div>
 
       <div className="add-form-card">
-        <div className="add-mode-toggle">
+        <div className="add-url-row">
+          <div className="add-url-input">
+            <Icons.Search />
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Paste your Zillow search URL (with filters applied)..."
+              className="input-field input-lg"
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+          </div>
           <button
-            className={`mode-btn ${mode === "url" ? "mode-active" : ""}`}
-            onClick={() => setMode("url")}
+            className="btn btn-primary btn-lg"
+            onClick={() => handleSearch()}
+            disabled={loading || !url.trim()}
           >
-            <Icons.Link /> Paste URL
-          </button>
-          <button
-            className={`mode-btn ${mode === "paste" ? "mode-active" : ""}`}
-            onClick={() => setMode("paste")}
-          >
-            <Icons.Document /> Paste Description
+            {loading ? "Searching..." : "Search"}
           </button>
         </div>
-
-        {mode === "url" ? (
-          <div className="add-url-row">
-            <div className="add-url-input">
-              <Icons.Link />
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Paste a Zillow, Redfin, Craigslist, or any listing URL..."
-                className="input-field input-lg"
-                onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-              />
-            </div>
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={handleAnalyze}
-              disabled={loading || !url.trim()}
-            >
-              {loading ? "Analyzing..." : "Analyze"}
-            </button>
-          </div>
-        ) : (
-          <div className="add-paste-area">
-            <p className="paste-hint">Copy the listing description from Zillow, Redfin, or any site and paste it here. Include the address, price, and details — AI will extract everything.</p>
-            <textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={"Example:\n\n$3,800/mo · 3 bed · 2 bath · 1,200 sqft\n742 Castro St, Mountain View, CA 94041\n\nBeautiful 3BR/2BA home in downtown Mountain View. Walking distance to Castro St restaurants and shops. Updated kitchen, hardwood floors, private backyard. Small dogs OK with deposit. 1 covered parking spot. Available May 1st."}
-              className="paste-textarea"
-              rows={10}
-            />
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={handleAnalyze}
-              disabled={loading || !pasteText.trim()}
-              style={{ width: "100%", marginTop: "12px" }}
-            >
-              {loading ? "Analyzing..." : "Analyze Listing"}
-            </button>
-          </div>
-        )}
+        <p className="text-secondary" style={{ fontSize: "13px", marginTop: "8px" }}>
+          Go to Zillow, set your filters (price, beds, area, etc.), then copy the URL from your browser
+        </p>
 
         {loading && (
           <div className="loading-card">
             <div className="loading-spinner" />
             <div className="loading-steps">
               <p className={`loading-step ${loadingStep >= 1 ? "active" : ""}`}>
-                <Icons.Search /> Extracting listing data...
+                <Icons.Search /> Fetching search results from Zillow...
               </p>
               <p className={`loading-step ${loadingStep >= 2 ? "active" : ""}`}>
-                <Icons.Score /> Scoring against your criteria...
+                <Icons.Score /> Scoring each listing against your criteria...
               </p>
               <p className={`loading-step ${loadingStep >= 3 ? "active" : ""}`}>
-                <Icons.Shield /> Checking for red flags...
+                <Icons.Check /> Almost done...
               </p>
             </div>
           </div>
@@ -144,111 +191,198 @@ export default function AddListing({ onNavigate }: AddListingProps) {
           </div>
         )}
 
-        {result && result.listing && (
-          <div className="result-card">
-            <div className="result-header">
-              <div className="result-title">
-                <h2>{result.listing.address || "Address"}</h2>
-                <p className="text-secondary">{result.listing.city} {result.listing.neighborhood ? `- ${result.listing.neighborhood}` : ""}</p>
-                <span className="source-badge">{result.listing.source}</span>
+        {importResult && (
+          <div className="save-confirmation" style={{ marginTop: "16px", padding: "16px" }}>
+            <Icons.Check />
+            <span>Imported {importResult.count} listings!</span>
+            <button
+              className="btn btn-ghost"
+              onClick={() => onNavigate("listings")}
+            >
+              View Dashboard <Icons.ArrowRight />
+            </button>
+          </div>
+        )}
+
+        {results.length > 0 && !importResult && (
+          <div className="search-results-section" style={{ marginTop: "24px" }}>
+            <div
+              className="search-results-header"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <h2 style={{ margin: 0, fontSize: "18px" }}>
+                  {filteredCount} results found
+                </h2>
+                <p className="text-secondary" style={{ margin: "4px 0 0", fontSize: "13px" }}>
+                  Page {currentPage} -- Showing {results.length} listings
+                </p>
               </div>
-              <ScoreBadge score={result.listing.score || 0} size="large" />
+              <button className="btn btn-ghost" onClick={toggleAll}>
+                {selected.size === results.length ? "Deselect All" : "Select All"}
+              </button>
             </div>
 
-            <div className="result-details-grid">
-              <div className="result-detail">
-                <span className="detail-label">Price</span>
-                <span className="detail-value">${result.listing.price?.toLocaleString()}/mo</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Bedrooms</span>
-                <span className="detail-value">{result.listing.bedrooms || "?"}</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Bathrooms</span>
-                <span className="detail-value">{result.listing.bathrooms || "?"}</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Sqft</span>
-                <span className="detail-value">{result.listing.sqft?.toLocaleString() || "?"}</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Parking</span>
-                <span className="detail-value">{result.listing.parking || "?"}</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Laundry</span>
-                <span className="detail-value">{result.listing.laundry || "?"}</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Pet Policy</span>
-                <span className="detail-value">{result.listing.pet_policy || "?"}</span>
-              </div>
-              <div className="result-detail">
-                <span className="detail-label">Available</span>
-                <span className="detail-value">{result.listing.available_date || "?"}</span>
-              </div>
-            </div>
+            <div
+              className="search-results-list"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                maxHeight: "600px",
+                overflowY: "auto",
+              }}
+            >
+              {results.map((r) => (
+                <div
+                  key={r.id}
+                  className="search-result-card"
+                  onClick={() => toggleSelect(r.id)}
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    padding: "12px",
+                    border: selected.has(r.id)
+                      ? "2px solid var(--primary)"
+                      : "2px solid var(--border)",
+                    borderRadius: "12px",
+                    cursor: "pointer",
+                    background: selected.has(r.id)
+                      ? "var(--primary-bg, rgba(15, 118, 110, 0.05))"
+                      : "var(--card-bg, #fff)",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      paddingTop: "4px",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleSelect(r.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                    />
+                  </div>
 
-            {result.listing.description && (
-              <div className="result-description">
-                <h3>Description</h3>
-                <p>{result.listing.description}</p>
-              </div>
-            )}
+                  {r.imgSrc && (
+                    <img
+                      src={r.imgSrc}
+                      alt={r.address.street}
+                      style={{
+                        width: "120px",
+                        height: "90px",
+                        objectFit: "cover",
+                        borderRadius: "8px",
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
 
-            {/* Score Breakdown */}
-            {result.listing.score_breakdown && Object.keys(result.listing.score_breakdown).length > 0 && (
-              <div className="score-breakdown-section">
-                <h3>Score Breakdown</h3>
-                <div className="breakdown-list">
-                  {Object.entries(result.listing.score_breakdown).map(([key, val]: [string, any]) => (
-                    <div key={key} className="breakdown-row">
-                      <div className="breakdown-label-row">
-                        <span className="breakdown-label">{key}</span>
-                        <span className="breakdown-weight">({Math.round(val.weight * 100)}% weight)</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "15px" }}>
+                          {r.address.street}
+                        </h3>
+                        <p
+                          className="text-secondary"
+                          style={{ margin: "2px 0 0", fontSize: "13px" }}
+                        >
+                          {r.address.city}, {r.address.state} {r.address.zipcode}
+                        </p>
                       </div>
-                      <div className="breakdown-bar-track">
-                        <div
-                          className="breakdown-bar-fill"
-                          style={{
-                            width: `${val.score}%`,
-                            backgroundColor: val.score >= 80 ? "var(--success)" : val.score >= 60 ? "var(--warning)" : "var(--accent)",
-                          }}
-                        />
-                      </div>
-                      <span className="breakdown-value">{val.score}</span>
-                      {val.reason && <p className="breakdown-reason">{val.reason}</p>}
+                      <ScoreBadge score={r.score || 0} size="small" />
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* Scam Risk */}
-            {result.scam_risk && (
-              <div className={`scam-card ${result.scam_risk.risk_score > 50 ? "scam-high" : result.scam_risk.risk_score > 20 ? "scam-medium" : "scam-low"}`}>
-                <div className="scam-header">
-                  <Icons.Shield />
-                  <h3>Scam Risk: {result.scam_risk.risk_score}/100</h3>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "16px",
+                        marginTop: "8px",
+                        fontSize: "14px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600 }}>{r.price}</span>
+                      <span>{r.beds} bd</span>
+                      <span>{r.baths} ba</span>
+                      <span>{(r.livingArea || r.area || 0).toLocaleString()} sqft</span>
+                      {r.daysOnZillow > 0 && (
+                        <span className="text-secondary">
+                          {r.daysOnZillow}d on Zillow
+                        </span>
+                      )}
+                      <span className="text-secondary">{r.homeType}</span>
+                    </div>
+                  </div>
                 </div>
-                <ul className="scam-reasons">
-                  {result.scam_risk.reasons?.map((r: string, i: number) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              ))}
+            </div>
 
-            {saved && (
-              <div className="save-confirmation">
-                <Icons.Check />
-                <span>Saved to your listings</span>
-                <button className="btn btn-ghost" onClick={() => onNavigate("listings")}>
-                  View Listings <Icons.ArrowRight />
+            {/* Pagination */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                marginTop: "16px",
+              }}
+            >
+              {currentPage > 1 && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={loading}
+                >
+                  Previous
                 </button>
-              </div>
-            )}
+              )}
+              <span
+                className="text-secondary"
+                style={{ display: "flex", alignItems: "center", fontSize: "14px" }}
+              >
+                Page {currentPage}
+              </span>
+              {results.length >= 40 && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={loading}
+                >
+                  Next
+                </button>
+              )}
+            </div>
+
+            {/* Bulk save button */}
+            <div style={{ marginTop: "20px" }}>
+              <button
+                className="btn btn-primary btn-lg"
+                style={{ width: "100%" }}
+                onClick={handleBulkSave}
+                disabled={saving || selected.size === 0}
+              >
+                {saving
+                  ? "Importing..."
+                  : `Import ${selected.size} Selected Listing${selected.size !== 1 ? "s" : ""}`}
+              </button>
+            </div>
           </div>
         )}
       </div>

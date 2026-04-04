@@ -2,13 +2,14 @@ import db from "./db";
 import { seedDemoData } from "./seed-demo";
 import {
   extractListingFromURL,
-  extractListingFromText,
+  searchListingsByURL,
   scoreListing,
   generateNeighborhoodReport,
   generateComparison,
   generateAdvisorResponse,
   detectScamRisk,
 } from "./ai";
+import type { SearchResult } from "./ai";
 import path from "path";
 import fs from "fs";
 
@@ -116,17 +117,11 @@ const server = Bun.serve({
     if (pathname === "/api/listings/add" && method === "POST") {
       try {
         const body = await req.json();
-        const { url: listingUrl, pastedText } = body;
-        if (!listingUrl && !pastedText) return errorResponse("URL or description is required");
+        const { url: listingUrl } = body;
+        if (!listingUrl) return errorResponse("URL is required");
 
         const user = getUser();
-        let extracted;
-        if (pastedText) {
-          // Parse pasted listing description with Claude
-          extracted = await extractListingFromText(pastedText);
-        } else {
-          extracted = await extractListingFromURL(listingUrl);
-        }
+        const extracted = await extractListingFromURL(listingUrl);
 
         // Score the listing
         const userPrefs = {
@@ -193,6 +188,121 @@ const server = Bun.serve({
       } catch (e: any) {
         console.error("Error adding listing:", e);
         return errorResponse(e.message || "Failed to add listing", 500);
+      }
+    }
+
+    // POST /api/listings/import-search — Bulk import from Zillow search URL
+    if (pathname === "/api/listings/import-search" && method === "POST") {
+      try {
+        const body = await req.json();
+        const { url: searchUrl, page } = body;
+        if (!searchUrl) return errorResponse("Zillow search URL is required");
+
+        const user = getUser();
+        const userPrefs = {
+          commute_address: user?.commute_address,
+          budget_min: user?.budget_min,
+          budget_max: user?.budget_max,
+          bedrooms: user?.bedrooms,
+          bathrooms: user?.bathrooms,
+          pet_friendly: user?.pet_friendly,
+          priorities: parseJSON(user?.priorities),
+        };
+
+        const searchData = await searchListingsByURL(searchUrl, page || 1);
+
+        // Score each result using a lightweight in-memory scoring approach
+        const scoredResults = await Promise.all(
+          searchData.results.map(async (r: SearchResult) => {
+            const listingForScore = {
+              address: r.address.street,
+              city: `${r.address.city}, ${r.address.state} ${r.address.zipcode}`,
+              price: r.unformattedPrice,
+              bedrooms: r.beds,
+              bathrooms: r.baths,
+              sqft: r.livingArea || r.area,
+              description: `${r.homeType} - ${r.beds} bed, ${r.baths} bath, ${r.livingArea || r.area} sqft`,
+            };
+
+            try {
+              const { score, breakdown } = await scoreListing(listingForScore, userPrefs);
+              return { ...r, score, scoreBreakdown: breakdown };
+            } catch (e) {
+              console.error(`Failed to score ${r.address.street}:`, e);
+              return { ...r, score: 50, scoreBreakdown: {} };
+            }
+          })
+        );
+
+        return jsonResponse({
+          success: true,
+          totalCount: searchData.totalCount,
+          filteredCount: searchData.filteredCount,
+          currentPage: parseInt(searchData.currentPage) || 1,
+          results: scoredResults,
+        });
+      } catch (e: any) {
+        console.error("Error importing search:", e);
+        return errorResponse(e.message || "Failed to search listings", 500);
+      }
+    }
+
+    // POST /api/listings/bulk-save — Save selected listings from search results
+    if (pathname === "/api/listings/bulk-save" && method === "POST") {
+      try {
+        const body = await req.json();
+        const { listings } = body;
+        if (!listings || !Array.isArray(listings) || listings.length === 0) {
+          return errorResponse("listings array is required");
+        }
+
+        const user = getUser();
+        const saved: any[] = [];
+
+        for (const item of listings) {
+          const fullAddress = `${item.address.street}, ${item.address.city}, ${item.address.state} ${item.address.zipcode}`;
+          const result = db.run(
+            `INSERT INTO listings (user_id, url, source, address, city, neighborhood, price, bedrooms, bathrooms, sqft, photos, description, pet_policy, parking, laundry, available_date, landlord_name, landlord_contact, raw_data, score, score_breakdown, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'saved')`,
+            [
+              user?.id || 1,
+              item.detailUrl || null,
+              "zillow",
+              item.address.street || null,
+              `${item.address.city}, ${item.address.state} ${item.address.zipcode}`,
+              null,
+              item.unformattedPrice || null,
+              item.beds || null,
+              item.baths || null,
+              item.livingArea || item.area || null,
+              JSON.stringify(item.imgSrc ? [item.imgSrc] : []),
+              `${item.homeType || "Home"} - ${item.beds} bed, ${item.baths} bath, ${item.livingArea || item.area || "?"} sqft`,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              JSON.stringify(item),
+              item.score || 50,
+              JSON.stringify(item.scoreBreakdown || {}),
+            ]
+          );
+
+          const newListing = db
+            .query("SELECT * FROM listings WHERE id = ?")
+            .get(result.lastInsertRowid) as any;
+          saved.push({
+            ...newListing,
+            photos: parseJSON(newListing.photos),
+            score_breakdown: parseJSON(newListing.score_breakdown),
+          });
+        }
+
+        return jsonResponse({ success: true, count: saved.length, listings: saved });
+      } catch (e: any) {
+        console.error("Error bulk saving:", e);
+        return errorResponse(e.message || "Failed to save listings", 500);
       }
     }
 

@@ -154,53 +154,61 @@ Return ONLY valid JSON with these fields (use null for truly unavailable data, b
   return { source };
 }
 
-export async function extractListingFromText(text: string): Promise<ListingData> {
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2000,
-    messages: [
-      {
-        role: "user",
-        content: `Extract structured rental listing data from this pasted listing description.
+export interface SearchResult {
+  id: string;
+  price: string;
+  unformattedPrice: number;
+  beds: number;
+  baths: number;
+  area: number;
+  livingArea: number;
+  homeType: string;
+  address: { street: string; city: string; state: string; zipcode: string };
+  latLong: { latitude: number; longitude: number };
+  imgSrc: string;
+  detailUrl: string;
+  daysOnZillow: number;
+}
 
-Listing text:
-${text}
+export interface SearchResponse {
+  success: boolean;
+  totalCount: number;
+  filteredCount: number;
+  currentPage: string;
+  results: SearchResult[];
+}
 
-Return ONLY valid JSON with these fields (use null for unavailable data):
-{
-  "address": "full street address",
-  "city": "city name",
-  "neighborhood": "neighborhood if mentioned",
-  "price": monthly_rent_as_number,
-  "bedrooms": number,
-  "bathrooms": number,
-  "sqft": square_footage_as_number,
-  "description": "brief description of the property",
-  "pet_policy": "pet policy details or null",
-  "parking": "parking details or null",
-  "laundry": "laundry details or null",
-  "available_date": "move-in date or null",
-  "landlord_name": "landlord/property manager name or null",
-  "landlord_contact": "contact info or null",
-  "photos": []
-}`,
-      },
-    ],
-  });
-
-  try {
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
-      data.source = "pasted";
-      return data;
-    }
-  } catch (e) {
-    console.error("Failed to parse pasted listing:", e);
+export async function searchListingsByURL(
+  zillowSearchUrl: string,
+  page: number = 1
+): Promise<SearchResponse> {
+  const apiKey = process.env.RAPIDAPI_KEY;
+  if (!apiKey) {
+    throw new Error("RAPIDAPI_KEY is not configured");
   }
 
-  return { source: "pasted" };
+  const encodedUrl = encodeURIComponent(zillowSearchUrl);
+  const response = await fetch(
+    `https://real-estate101.p.rapidapi.com/api/search/byurl?url=${encodedUrl}&page=${page}`,
+    {
+      headers: {
+        "x-rapidapi-host": "real-estate101.p.rapidapi.com",
+        "x-rapidapi-key": apiKey,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`RapidAPI request failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error("RapidAPI returned unsuccessful response");
+  }
+
+  return data as SearchResponse;
 }
 
 export async function scoreListing(
