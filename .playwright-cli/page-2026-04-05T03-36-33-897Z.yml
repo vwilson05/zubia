@@ -1,0 +1,7 @@
+- generic [ref=e21]:
+  - generic [ref=e28]: Step 5 of 5
+  - generic [ref=e159]:
+    - img [ref=e161]
+    - heading "You are all set!" [level=1] [ref=e164]
+    - paragraph [ref=e165]: Your preferences are saved. Let's find your next home, Trang.
+    - button "Go to Dashboard" [ref=e166] [cursor=pointer]

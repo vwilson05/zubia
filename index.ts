@@ -196,7 +196,7 @@ const server = Bun.serve({
         );
 
         return new Response(
-          JSON.stringify({ user: { id: user.id, name: user.name, email: user.email } }),
+          JSON.stringify({ user: { id: user.id, name: user.name, email: user.email, onboarded: user.onboarded ?? 0 } }),
           {
             status: 200,
             headers: {
@@ -214,12 +214,12 @@ const server = Bun.serve({
     // GET /auth/me — Current user
     if (pathname === "/auth/me" && method === "GET") {
       const user = getAuthenticatedUser(req);
-      if (user) return jsonResponse({ id: user.id, name: user.name, email: user.email });
+      if (user) return jsonResponse({ id: user.id, name: user.name, email: user.email, onboarded: user.onboarded ?? 0 });
 
       // Demo session: return demo user with demo flag
       if (isDemoSession(req)) {
         const demoUser = getDemoUser();
-        if (demoUser) return jsonResponse({ id: demoUser.id, name: demoUser.name, email: demoUser.email, demo: true });
+        if (demoUser) return jsonResponse({ id: demoUser.id, name: demoUser.name, email: demoUser.email, demo: true, onboarded: 1 });
       }
 
       return errorResponse("Not authenticated", 401);
@@ -238,6 +238,14 @@ const server = Bun.serve({
           "Set-Cookie": setCookie("zubia_session", "", 0),
         },
       });
+    }
+
+    // PUT /api/user/onboard — Mark user as onboarded
+    if (pathname === "/api/user/onboard" && method === "PUT") {
+      const user = getAuthenticatedUser(req);
+      if (!user) return errorResponse("Not authenticated", 401);
+      db.run("UPDATE users SET onboarded = 1 WHERE id = ?", [user.id]);
+      return jsonResponse({ success: true });
     }
 
     // GET /auth/demo — Start a demo session (read-only, user_id=1)

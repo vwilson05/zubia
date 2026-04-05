@@ -1,0 +1,12 @@
+- generic [ref=e21]:
+  - generic [ref=e28]: Step 1 of 5
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - img [ref=e32]
+      - generic [ref=e34]: zubia
+    - heading "Welcome to Zubia, Trang!" [level=1] [ref=e35]
+    - paragraph [ref=e36]: "Your personal rental search command center. Here is how it works:"
+    - generic [ref=e37]:
+      - paragraph [ref=e38]: Zubia helps you find, score, compare, and track rental properties across Zillow and Redfin -- all in one place, scored against YOUR priorities.
+      - paragraph [ref=e39]: We will walk you through a quick setup so everything is personalized for you. It only takes a minute.
+    - button "Let's get you set up" [ref=e40] [cursor=pointer]

@@ -2419,3 +2419,266 @@ a:hover { text-decoration: underline; }
   padding: 6px 14px;
   font-size: 0.8125rem;
 }
+
+/* ===== Welcome / Onboarding ===== */
+.welcome-page {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px 60px;
+}
+
+.welcome-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 48px;
+}
+
+.welcome-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+  transition: all 0.3s ease;
+}
+
+.welcome-dot-active {
+  width: 12px;
+  height: 12px;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.15);
+}
+
+.welcome-dot-done {
+  background: var(--primary-light);
+}
+
+.welcome-step-label {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  margin-left: 8px;
+}
+
+.welcome-step-container {
+  width: 100%;
+  max-width: 640px;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.welcome-fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.welcome-fade-out {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.welcome-step {
+  display: flex;
+  flex-direction: column;
+}
+
+.welcome-step-center {
+  align-items: center;
+  text-align: center;
+}
+
+.welcome-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 32px;
+}
+
+.welcome-logo svg {
+  width: 40px;
+  height: 40px;
+}
+
+.welcome-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.welcome-subtitle {
+  font-size: 1.0625rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 32px;
+  max-width: 520px;
+}
+
+.welcome-explain {
+  background: var(--bg-teal);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  margin-bottom: 40px;
+  max-width: 520px;
+}
+
+.welcome-explain p {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.welcome-explain p:last-child {
+  margin-bottom: 0;
+}
+
+.welcome-cta {
+  padding: 14px 36px;
+  font-size: 1rem;
+}
+
+/* Step 2: Form */
+.welcome-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 36px;
+}
+
+.welcome-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.welcome-form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.welcome-form-row {
+  display: flex;
+  gap: 16px;
+}
+
+/* Step 3: Must-haves */
+.welcome-must-haves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.welcome-checkbox-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.welcome-checkbox-card:hover {
+  border-color: var(--primary-light);
+  background: var(--bg-teal);
+}
+
+.welcome-checkbox-card-active {
+  border-color: var(--primary);
+  background: var(--bg-teal);
+}
+
+.welcome-checkbox-card input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 18px;
+  height: 18px;
+}
+
+/* Step 4: Feature cards */
+.welcome-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.welcome-feature-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.welcome-feature-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-teal);
+  border-radius: var(--radius);
+  color: var(--primary);
+}
+
+.welcome-feature-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.welcome-feature-card h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.welcome-feature-card p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Step 5: Ready */
+.welcome-ready-icon {
+  margin-bottom: 24px;
+}
+
+/* Navigation */
+.welcome-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .welcome-page {
+    padding: 24px 16px 40px;
+  }
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  .welcome-must-haves {
+    grid-template-columns: 1fr;
+  }
+  .welcome-form-row {
+    flex-direction: column;
+  }
+}

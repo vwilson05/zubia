@@ -1,0 +1,33 @@
+- generic [ref=e21]:
+  - generic [ref=e28]: Step 3 of 5
+  - generic [ref=e65]:
+    - heading "Your Must-Haves" [level=1] [ref=e66]
+    - paragraph [ref=e67]: What are your deal-breakers? Listings missing these will get flagged so you do not waste time on them.
+    - generic [ref=e68]:
+      - generic [ref=e69] [cursor=pointer]:
+        - checkbox "In-unit washer/dryer" [checked] [ref=e70]
+        - generic [ref=e71]: In-unit washer/dryer
+      - generic [ref=e72] [cursor=pointer]:
+        - checkbox "Backyard / outdoor space" [checked] [ref=e73]
+        - generic [ref=e74]: Backyard / outdoor space
+      - generic [ref=e75] [cursor=pointer]:
+        - checkbox "Parking included" [checked] [ref=e76]
+        - generic [ref=e77]: Parking included
+      - generic [ref=e78] [cursor=pointer]:
+        - checkbox "Pet-friendly" [checked] [ref=e79]
+        - generic [ref=e80]: Pet-friendly
+      - generic [ref=e81] [cursor=pointer]:
+        - checkbox "Garage" [ref=e82]
+        - generic [ref=e83]: Garage
+      - generic [ref=e84] [cursor=pointer]:
+        - checkbox "Air conditioning" [ref=e85]
+        - generic [ref=e86]: Air conditioning
+      - generic [ref=e87] [cursor=pointer]:
+        - checkbox "Dishwasher" [ref=e88]
+        - generic [ref=e89]: Dishwasher
+      - generic [ref=e90] [cursor=pointer]:
+        - checkbox "EV charging" [ref=e91]
+        - generic [ref=e92]: EV charging
+    - generic [ref=e93]:
+      - button "Back" [ref=e94] [cursor=pointer]
+      - button "Next" [ref=e95] [cursor=pointer]

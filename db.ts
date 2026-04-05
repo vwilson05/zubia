@@ -146,5 +146,11 @@ try {
 } catch (e) {
   // Column already exists
 }
+// Migrate: add onboarded column (0 = not yet, 1 = completed)
+try {
+  db.exec("ALTER TABLE users ADD COLUMN onboarded INTEGER DEFAULT 0");
+} catch (e) {
+  // Column already exists
+}
 
 export default db;

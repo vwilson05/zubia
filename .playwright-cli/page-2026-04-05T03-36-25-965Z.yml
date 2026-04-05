@@ -1,0 +1,39 @@
+- generic [ref=e21]:
+  - generic [ref=e28]: Step 4 of 5
+  - generic [ref=e96]:
+    - heading "How to Use Zubia" [level=1] [ref=e97]
+    - paragraph [ref=e98]: Here is what each part of your command center does.
+    - generic [ref=e99]:
+      - generic [ref=e100]:
+        - img [ref=e102]
+        - generic [ref=e105]:
+          - heading "Search" [level=3] [ref=e106]
+          - paragraph [ref=e107]: Type a location or paste a Zillow/Redfin URL to find rentals.
+      - generic [ref=e108]:
+        - img [ref=e110]
+        - generic [ref=e116]:
+          - heading "Score" [level=3] [ref=e117]
+          - paragraph [ref=e118]: Every listing gets a personal score based on YOUR criteria.
+      - generic [ref=e119]:
+        - img [ref=e121]
+        - generic [ref=e125]:
+          - heading "Compare" [level=3] [ref=e126]
+          - paragraph [ref=e127]: Put your top picks side-by-side with AI analysis.
+      - generic [ref=e128]:
+        - img [ref=e130]
+        - generic [ref=e134]:
+          - heading "Track" [level=3] [ref=e135]
+          - paragraph [ref=e136]: Use the Application tracker to manage where you have applied.
+      - generic [ref=e137]:
+        - img [ref=e139]
+        - generic [ref=e143]:
+          - heading "Tasks" [level=3] [ref=e144]
+          - paragraph [ref=e145]: Keep track of follow-ups, tours, and deadlines.
+      - generic [ref=e146]:
+        - img [ref=e148]
+        - generic [ref=e153]:
+          - heading "Ask" [level=3] [ref=e154]
+          - paragraph [ref=e155]: The AI Advisor answers any question about your search.
+    - generic [ref=e156]:
+      - button "Back" [ref=e157] [cursor=pointer]
+      - button "Next" [ref=e158] [cursor=pointer]

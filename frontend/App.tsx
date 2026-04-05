@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Landing from "./Landing";
 import Login from "./Login";
+import Welcome from "./Welcome";
 import Dashboard from "./Dashboard";
 import Listings from "./Listings";
 import AddListing from "./AddListing";
@@ -47,6 +48,7 @@ interface AuthUser {
   id: number;
   name: string;
   email: string;
+  onboarded?: number;
 }
 
 export default function App() {
@@ -159,6 +161,19 @@ export default function App() {
       <Login
         onLogin={handleLogin}
         onNavigateHome={() => navigate("landing")}
+      />
+    );
+  }
+
+  // Show onboarding for authenticated (non-demo) users who haven't completed it
+  if (authUser && !demoMode && authUser.onboarded === 0) {
+    return (
+      <Welcome
+        userName={authUser.name}
+        onComplete={() => {
+          setAuthUser({ ...authUser, onboarded: 1 });
+          setPage("dashboard");
+        }}
       />
     );
   }
