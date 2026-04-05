@@ -16,13 +16,50 @@ import path from "path";
 import fs from "fs";
 
 // Auto-seed demo data if empty
-seedDemoData();
+await seedDemoData();
 
 const isDev = process.env.NODE_ENV !== "production";
 const PORT = parseInt(process.env.PORT || "3342");
 
-// Helper to get user (use first user for now, single-user MVP)
-function getUser() {
+// Allowed email addresses (whitelist)
+const ALLOWED_EMAILS = ["trangbui05@gmail.com"];
+
+// Auth helpers
+function generateSessionToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getSessionFromCookie(req: Request): any | null {
+  const cookie = req.headers.get("cookie");
+  if (!cookie) return null;
+  const match = cookie.match(/zubia_session=([^;]+)/);
+  if (!match) return null;
+  const token = match[1];
+  const session = db
+    .query(
+      "SELECT s.*, u.id as uid, u.name, u.email FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')"
+    )
+    .get(token) as any;
+  return session;
+}
+
+function getAuthenticatedUser(req: Request): any | null {
+  const session = getSessionFromCookie(req);
+  if (!session) return null;
+  return db.query("SELECT * FROM users WHERE id = ?").get(session.user_id) as any;
+}
+
+function setCookie(name: string, value: string, maxAge: number): string {
+  return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
+}
+
+// Get user from request (authenticated) or fallback to first user (demo/landing)
+function getUser(req?: Request): any {
+  if (req) {
+    const user = getAuthenticatedUser(req);
+    if (user) return user;
+  }
   return db.query("SELECT * FROM users LIMIT 1").get() as any;
 }
 
@@ -113,7 +150,101 @@ const server = Bun.serve({
       }
     }
 
+    // --- Auth Routes ---
+
+    // POST /auth/login — Email/password login
+    if (pathname === "/auth/login" && method === "POST") {
+      try {
+        const body = await req.json();
+        const { email, password } = body;
+        if (!email || !password) return errorResponse("Email and password are required");
+
+        const user = db.query("SELECT * FROM users WHERE email = ?").get(email) as any;
+        if (!user || !user.password_hash) {
+          // Check if email is allowed but account doesn't exist
+          if (ALLOWED_EMAILS.includes(email.toLowerCase())) {
+            return errorResponse("Account not set up yet. Contact support.", 401);
+          }
+          return errorResponse("Access coming soon. Your account is not yet active.", 403);
+        }
+
+        // Check if email is in allowlist
+        if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+          return errorResponse("Access coming soon. Your account is not yet active.", 403);
+        }
+
+        const valid = await Bun.password.verify(password, user.password_hash);
+        if (!valid) return errorResponse("Invalid email or password", 401);
+
+        // Create session
+        const token = generateSessionToken();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+        db.run(
+          "INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)",
+          [user.id, token, expiresAt]
+        );
+
+        return new Response(
+          JSON.stringify({ user: { id: user.id, name: user.name, email: user.email } }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Set-Cookie": setCookie("zubia_session", token, 30 * 24 * 60 * 60),
+            },
+          }
+        );
+      } catch (e: any) {
+        console.error("Login error:", e);
+        return errorResponse("Login failed", 500);
+      }
+    }
+
+    // GET /auth/me — Current user
+    if (pathname === "/auth/me" && method === "GET") {
+      const user = getAuthenticatedUser(req);
+      if (!user) return errorResponse("Not authenticated", 401);
+      return jsonResponse({ id: user.id, name: user.name, email: user.email });
+    }
+
+    // POST /auth/logout — Clear session
+    if (pathname === "/auth/logout" && method === "POST") {
+      const session = getSessionFromCookie(req);
+      if (session) {
+        db.run("DELETE FROM sessions WHERE token = ?", [session.token]);
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Set-Cookie": setCookie("zubia_session", "", 0),
+        },
+      });
+    }
+
     // --- API Routes ---
+
+    // Public API: email signup (no auth required)
+    if (pathname === "/api/email-signup" && method === "POST") {
+      const body = await req.json();
+      if (!body.email) return errorResponse("Email is required");
+
+      try {
+        db.run(
+          "INSERT OR IGNORE INTO email_signups (email, source) VALUES (?, ?)",
+          [body.email, body.source || "landing"]
+        );
+        return jsonResponse({ success: true });
+      } catch (e) {
+        return jsonResponse({ success: true }); // Don't reveal duplicates
+      }
+    }
+
+    // Auth middleware for all other /api/* routes
+    if (pathname.startsWith("/api/")) {
+      const user = getAuthenticatedUser(req);
+      if (!user) return errorResponse("Not authenticated", 401);
+    }
 
     // POST /api/listings/add — Paste URL, AI extracts + scores
     if (pathname === "/api/listings/add" && method === "POST") {
@@ -122,7 +253,7 @@ const server = Bun.serve({
         const { url: listingUrl } = body;
         if (!listingUrl) return errorResponse("URL is required");
 
-        const user = getUser();
+        const user = getUser(req);
         const extracted = await extractListingFromURL(listingUrl);
 
         // Score the listing
@@ -205,7 +336,7 @@ const server = Bun.serve({
         const page = body.page || 1;
         if (!rawLocation) return errorResponse("Search URL or location is required");
 
-        const user = getUser();
+        const user = getUser(req);
         const userPrefs = {
           commute_address: user?.commute_address,
           budget_min: user?.budget_min,
@@ -306,7 +437,7 @@ const server = Bun.serve({
           return errorResponse("listings array is required");
         }
 
-        const user = getUser();
+        const user = getUser(req);
         const saved: any[] = [];
 
         for (const item of listings) {
@@ -434,7 +565,7 @@ const server = Bun.serve({
         .get(id) as any;
       if (!listing) return errorResponse("Listing not found", 404);
 
-      const user = getUser();
+      const user = getUser(req);
       const userPrefs = {
         commute_address: user?.commute_address,
         budget_min: user?.budget_min,
@@ -476,7 +607,7 @@ const server = Bun.serve({
         .get(id) as any;
       if (!listing) return errorResponse("Listing not found", 404);
 
-      const user = getUser();
+      const user = getUser(req);
       const reportData = await generateNeighborhoodReport(
         `${listing.address}, ${listing.city}`,
         user?.commute_address
@@ -521,7 +652,7 @@ const server = Bun.serve({
         .query(`SELECT * FROM listings WHERE id IN (${placeholders})`)
         .all(...listing_ids) as any[];
 
-      const user = getUser();
+      const user = getUser(req);
       const userPrefs = {
         commute_address: user?.commute_address,
         budget_min: user?.budget_min,
@@ -557,7 +688,7 @@ const server = Bun.serve({
       const { question } = body;
       if (!question) return errorResponse("Question is required");
 
-      const user = getUser();
+      const user = getUser(req);
       const listings = db
         .query("SELECT * FROM listings WHERE user_id = ? ORDER BY score DESC")
         .all(user?.id || 1) as any[];
@@ -582,7 +713,7 @@ const server = Bun.serve({
 
     // GET /api/preferences
     if (pathname === "/api/preferences" && method === "GET") {
-      const user = getUser();
+      const user = getUser(req);
       if (!user) return jsonResponse({});
       return jsonResponse({
         ...user,
@@ -655,7 +786,7 @@ const server = Bun.serve({
     // POST /api/applications
     if (pathname === "/api/applications" && method === "POST") {
       const body = await req.json();
-      const user = getUser();
+      const user = getUser(req);
       const result = db.run(
         `INSERT INTO applications (listing_id, user_id, date_applied, docs_submitted, status, follow_up_date, notes)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -727,22 +858,6 @@ const server = Bun.serve({
       return jsonResponse(updated);
     }
 
-    // POST /api/email-signup
-    if (pathname === "/api/email-signup" && method === "POST") {
-      const body = await req.json();
-      if (!body.email) return errorResponse("Email is required");
-
-      try {
-        db.run(
-          "INSERT OR IGNORE INTO email_signups (email, source) VALUES (?, ?)",
-          [body.email, body.source || "landing"]
-        );
-        return jsonResponse({ success: true });
-      } catch (e) {
-        return jsonResponse({ success: true }); // Don't reveal duplicates
-      }
-    }
-
     // GET /api/comparisons
     if (pathname === "/api/comparisons" && method === "GET") {
       const comparisons = db
@@ -754,6 +869,95 @@ const server = Bun.serve({
           listing_ids: parseJSON(c.listing_ids),
         }))
       );
+    }
+
+    // --- Task Routes ---
+
+    // GET /api/tasks
+    if (pathname === "/api/tasks" && method === "GET") {
+      const user = getUser(req);
+      const tasks = db
+        .query(
+          `SELECT t.*, l.address as listing_address, l.city as listing_city
+           FROM tasks t
+           LEFT JOIN listings l ON t.listing_id = l.id
+           WHERE t.user_id = ?
+           ORDER BY
+             CASE t.status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'done' THEN 2 END,
+             CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+             t.due_date ASC`
+        )
+        .all(user?.id || 1) as any[];
+      return jsonResponse(tasks);
+    }
+
+    // POST /api/tasks
+    if (pathname === "/api/tasks" && method === "POST") {
+      const user = getUser(req);
+      const body = await req.json();
+      if (!body.title) return errorResponse("Title is required");
+
+      const result = db.run(
+        `INSERT INTO tasks (user_id, listing_id, title, description, due_date, priority, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          user?.id || 1,
+          body.listing_id || null,
+          body.title,
+          body.description || null,
+          body.due_date || null,
+          body.priority || "medium",
+          body.status || "todo",
+        ]
+      );
+
+      const task = db
+        .query(
+          `SELECT t.*, l.address as listing_address, l.city as listing_city
+           FROM tasks t LEFT JOIN listings l ON t.listing_id = l.id
+           WHERE t.id = ?`
+        )
+        .get(result.lastInsertRowid);
+      return jsonResponse(task);
+    }
+
+    // PUT /api/tasks/:id
+    const taskPutMatch = pathname.match(/^\/api\/tasks\/(\d+)$/);
+    if (taskPutMatch && method === "PUT") {
+      const id = parseInt(taskPutMatch[1]);
+      const body = await req.json();
+      const fields: string[] = [];
+      const values: any[] = [];
+
+      for (const [key, value] of Object.entries(body)) {
+        if (["title", "description", "due_date", "priority", "status", "listing_id"].includes(key)) {
+          fields.push(`${key} = ?`);
+          values.push(value);
+        }
+      }
+
+      if (fields.length > 0) {
+        fields.push("updated_at = datetime('now')");
+        values.push(id);
+        db.run(`UPDATE tasks SET ${fields.join(", ")} WHERE id = ?`, values);
+      }
+
+      const updated = db
+        .query(
+          `SELECT t.*, l.address as listing_address, l.city as listing_city
+           FROM tasks t LEFT JOIN listings l ON t.listing_id = l.id
+           WHERE t.id = ?`
+        )
+        .get(id);
+      return jsonResponse(updated);
+    }
+
+    // DELETE /api/tasks/:id
+    const taskDeleteMatch = pathname.match(/^\/api\/tasks\/(\d+)$/);
+    if (taskDeleteMatch && method === "DELETE") {
+      const id = parseInt(taskDeleteMatch[1]);
+      db.run("DELETE FROM tasks WHERE id = ?", [id]);
+      return jsonResponse({ success: true });
     }
 
     // --- HTML Routes (SPA) ---

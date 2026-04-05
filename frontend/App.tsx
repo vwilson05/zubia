@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Landing from "./Landing";
+import Login from "./Login";
 import Dashboard from "./Dashboard";
 import Listings from "./Listings";
 import AddListing from "./AddListing";
@@ -7,6 +8,7 @@ import Compare from "./Compare";
 import Applications from "./Applications";
 import Advisor from "./Advisor";
 import Settings from "./Settings";
+import Tasks from "./Tasks";
 import { Icons } from "./Icons";
 
 type Page =
@@ -17,7 +19,8 @@ type Page =
   | "compare"
   | "applications"
   | "advisor"
-  | "settings";
+  | "settings"
+  | "tasks";
 
 function getInitialPage(): Page {
   const path = window.location.pathname;
@@ -29,12 +32,56 @@ function getInitialPage(): Page {
   if (path === "/app/applications") return "applications";
   if (path === "/app/advisor") return "advisor";
   if (path === "/app/settings") return "settings";
+  if (path === "/app/tasks") return "tasks";
   return "landing";
+}
+
+interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
 }
 
 export default function App() {
   const [page, setPage] = useState<Page>(getInitialPage());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check auth on mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch("/auth/me");
+      if (res.ok) {
+        const user = await res.json();
+        setAuthUser(user);
+      }
+    } catch (e) {
+      // Not logged in
+    }
+    setAuthChecked(true);
+    setAuthLoading(false);
+  };
+
+  const handleLogin = (user: AuthUser) => {
+    setAuthUser(user);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/auth/logout", { method: "POST" });
+    } catch (e) {
+      // ignore
+    }
+    setAuthUser(null);
+    setPage("landing");
+    window.history.pushState({}, "", "/");
+  };
 
   const navigate = (p: Page) => {
     setPage(p);
@@ -49,8 +96,28 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePop);
   }, []);
 
+  // Landing page is always public
   if (page === "landing") {
     return <Landing onNavigate={navigate} />;
+  }
+
+  // For app pages, check auth
+  if (authLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="loading-spinner" />
+      </div>
+    );
+  }
+
+  // Not authenticated -- show login
+  if (!authUser) {
+    return (
+      <Login
+        onLogin={handleLogin}
+        onNavigateHome={() => navigate("landing")}
+      />
+    );
   }
 
   const navItems = [
@@ -59,6 +126,7 @@ export default function App() {
     { id: "listings" as Page, label: "My Listings", icon: <Icons.Listings /> },
     { id: "compare" as Page, label: "Compare", icon: <Icons.Compare /> },
     { id: "applications" as Page, label: "Applications", icon: <Icons.Applications /> },
+    { id: "tasks" as Page, label: "Tasks", icon: <Icons.Applications /> },
     { id: "advisor" as Page, label: "AI Advisor", icon: <Icons.Advisor /> },
     { id: "settings" as Page, label: "Settings", icon: <Icons.Settings /> },
   ];
@@ -86,6 +154,20 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">
+              {authUser.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{authUser.name}</span>
+              <span className="sidebar-user-email">{authUser.email}</span>
+            </div>
+          </div>
+          <button className="btn btn-ghost sidebar-logout" onClick={handleLogout}>
+            Sign Out
+          </button>
+        </div>
       </aside>
       <main className="main-content">
         <header className="topbar">
@@ -100,6 +182,7 @@ export default function App() {
           {page === "add" && <AddListing onNavigate={navigate} />}
           {page === "compare" && <Compare />}
           {page === "applications" && <Applications />}
+          {page === "tasks" && <Tasks />}
           {page === "advisor" && <Advisor />}
           {page === "settings" && <Settings />}
         </div>

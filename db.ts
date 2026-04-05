@@ -102,6 +102,27 @@ db.exec(`
     source TEXT DEFAULT 'landing',
     created_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    listing_id INTEGER REFERENCES listings(id),
+    title TEXT NOT NULL,
+    description TEXT,
+    due_date TEXT,
+    priority TEXT DEFAULT 'medium' CHECK(priority IN ('low','medium','high')),
+    status TEXT DEFAULT 'todo' CHECK(status IN ('todo','in_progress','done')),
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Migrate: add must_haves and nice_to_haves columns if they don't exist
@@ -112,6 +133,12 @@ try {
 }
 try {
   db.exec("ALTER TABLE users ADD COLUMN nice_to_haves TEXT DEFAULT '[]'");
+} catch (e) {
+  // Column already exists
+}
+// Migrate: add password_hash column
+try {
+  db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT");
 } catch (e) {
   // Column already exists
 }

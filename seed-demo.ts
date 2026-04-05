@@ -1,6 +1,6 @@
 import db from "./db";
 
-export function seedDemoData() {
+export async function seedDemoData() {
   // Idempotency check
   const existingUser = db.query("SELECT id FROM users LIMIT 1").get();
   if (existingUser) {
@@ -10,13 +10,20 @@ export function seedDemoData() {
 
   console.log("[seed] Seeding demo data...");
 
+  // Hash password for Trang's account
+  const passwordHash = await Bun.password.hash("zubia2026", {
+    algorithm: "bcrypt",
+    cost: 10,
+  });
+
   // Create demo user: Trang
   const userResult = db.run(
-    `INSERT INTO users (name, email, commute_address, budget_min, budget_max, priorities, bedrooms, bathrooms, pet_friendly, parking, laundry, must_haves, nice_to_haves)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, email, password_hash, commute_address, budget_min, budget_max, priorities, bedrooms, bathrooms, pet_friendly, parking, laundry, must_haves, nice_to_haves)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       "Trang",
-      "trang@example.com",
+      "trangbui05@gmail.com",
+      passwordHash,
       "San Francisco Financial District",
       3000,
       4500,
@@ -317,10 +324,54 @@ export function seedDemoData() {
     ]
   );
 
+  // Sample tasks
+  db.run(
+    `INSERT INTO tasks (user_id, listing_id, title, description, due_date, priority, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId as number,
+      listingIds[0],
+      "Follow up on 742 Castro St application",
+      "Submitted full docs 5 days ago. They said 3-5 business days -- follow up today if no response.",
+      "2026-04-05",
+      "high",
+      "todo",
+    ]
+  );
+
+  db.run(
+    `INSERT INTO tasks (user_id, listing_id, title, description, due_date, priority, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId as number,
+      listingIds[1],
+      "Ask Maria Chen about pet policy",
+      "Sent inquiry about pet policy for 456 El Camino Real. Need to confirm if dogs are allowed and deposit amount.",
+      "2026-04-04",
+      "medium",
+      "todo",
+    ]
+  );
+
+  db.run(
+    `INSERT INTO tasks (user_id, listing_id, title, description, due_date, priority, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId as number,
+      listingIds[3],
+      "Schedule tour at 789 Jefferson Ave",
+      "Redwood City listing looks great. Contact Sequoia Residential to schedule a weekend tour.",
+      "2026-04-10",
+      "medium",
+      "todo",
+    ]
+  );
+
   console.log("[seed] Demo data seeded successfully:");
   console.log(`  - 1 user (Trang)`);
   console.log(`  - 6 listings`);
   console.log(`  - 2 applications`);
   console.log(`  - 1 neighborhood report`);
   console.log(`  - 1 comparison board`);
+  console.log(`  - 3 tasks`);
 }
