@@ -143,6 +143,14 @@ export default function Welcome({ userName, onComplete }: WelcomeProps) {
                 It only takes a minute.
               </p>
             </div>
+            <div className="welcome-video">
+              <iframe
+                src="https://www.youtube.com/embed/uktQI9dqU3M"
+                title="Welcome to Zubia"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
             <button className="btn btn-primary btn-lg welcome-cta" onClick={() => goToStep(2)}>
               Let's get you set up
             </button>
