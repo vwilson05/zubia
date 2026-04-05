@@ -92,6 +92,9 @@ export default function Login({ onLogin, onNavigateHome }: LoginProps) {
         <p className="login-footer-text">
           Not a member yet? Zubia is in private beta.
         </p>
+        <a href="/demo" className="login-demo-link">
+          Just looking? Try the demo
+        </a>
       </div>
     </div>
   );

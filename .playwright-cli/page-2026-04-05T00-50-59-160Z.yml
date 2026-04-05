@@ -1,0 +1,113 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - generic [ref=e9]: zubia
+      - generic [ref=e10]:
+        - link "See Demo" [ref=e11] [cursor=pointer]:
+          - /url: /demo
+        - link "Sign In" [ref=e12] [cursor=pointer]:
+          - /url: /app
+  - generic [ref=e14]:
+    - paragraph [ref=e15]: zubia — Basque for "bridge"
+    - heading "Stop scrolling. Start deciding." [level=1] [ref=e16]:
+      - text: Stop scrolling.
+      - text: Start deciding.
+    - paragraph [ref=e17]: Paste a listing URL from anywhere. AI scores it against YOUR priorities, enriches it with neighborhood data, and helps you decide. Finally.
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - textbox "your@email.com" [ref=e20]
+        - button "Get Early Access" [ref=e21] [cursor=pointer]
+      - link "See Demo" [ref=e22] [cursor=pointer]:
+        - /url: /demo
+        - text: See Demo
+        - img [ref=e23]
+  - generic [ref=e26]:
+    - heading "See it in action" [level=2] [ref=e27]
+    - paragraph [ref=e28]: Paste any rental listing URL and watch the magic happen.
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - img [ref=e31]
+        - textbox "Paste a Zillow, Redfin, or Craigslist URL..." [ref=e35]: https://www.zillow.com/homedetails/742-Castro-St-Mountain-View-CA-94041/
+      - button "Analyze Listing" [ref=e36] [cursor=pointer]
+  - generic [ref=e38]:
+    - heading "Sound familiar?" [level=2] [ref=e39]
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - img [ref=e43]
+        - paragraph [ref=e49]: "\"5 apps, 50 tabs, zero clarity\""
+      - generic [ref=e50]:
+        - img [ref=e52]
+        - paragraph [ref=e56]: "\"Same listing, different prices, which is real?\""
+      - generic [ref=e57]:
+        - img [ref=e59]
+        - paragraph [ref=e63]: "\"Applied 3 days ago. Heard nothing. Is that normal?\""
+      - generic [ref=e64]:
+        - img [ref=e66]
+        - paragraph [ref=e69]: "\"Is this neighborhood actually safe or just Walk Score safe?\""
+  - generic [ref=e71]:
+    - heading "Everything you need to decide" [level=2] [ref=e72]
+    - paragraph [ref=e73]: One place for your entire rental search.
+    - generic [ref=e74]:
+      - generic [ref=e75]:
+        - img [ref=e77]
+        - heading "Paste & Score" [level=3] [ref=e81]
+        - paragraph [ref=e82]: Paste any listing URL from Zillow, Redfin, Craigslist, or anywhere. Get a personal score in seconds.
+      - generic [ref=e83]:
+        - img [ref=e85]
+        - heading "Your Criteria, Your Score" [level=3] [ref=e88]
+        - paragraph [ref=e89]: Weighted scoring that reflects what YOU care about. Commute, price, safety, walkability — you set the weights.
+      - generic [ref=e90]:
+        - img [ref=e92]
+        - heading "Neighborhood Intel" [level=3] [ref=e95]
+        - paragraph [ref=e96]: Real commute times, safety data, walkability, noise levels, and nearby amenities. Not just a number.
+      - generic [ref=e97]:
+        - img [ref=e99]
+        - heading "Side-by-Side" [level=3] [ref=e103]
+        - paragraph [ref=e104]: Compare your top picks with AI-powered analysis. See exactly where each listing wins and loses.
+      - generic [ref=e105]:
+        - img [ref=e107]
+        - heading "Application Tracker" [level=3] [ref=e111]
+        - paragraph [ref=e112]: Know where you stand with every application. Track docs, deadlines, and follow-ups in one place.
+      - generic [ref=e113]:
+        - img [ref=e115]
+        - heading "AI Advisor" [level=3] [ref=e120]
+        - paragraph [ref=e121]: "\"Should I apply?\" \"Is this a good deal?\" \"What should I ask the landlord?\" Get real answers, not generic tips."
+  - generic [ref=e123]:
+    - heading "Three steps to clarity" [level=2] [ref=e124]
+    - generic [ref=e125]:
+      - generic [ref=e126]:
+        - generic [ref=e127]: "1"
+        - heading "Tell us what matters" [level=3] [ref=e128]
+        - paragraph [ref=e129]: Set your commute address, budget range, and priority weights. Takes 2 minutes.
+      - img [ref=e131]
+      - generic [ref=e133]:
+        - generic [ref=e134]: "2"
+        - heading "Paste listings" [level=3] [ref=e135]
+        - paragraph [ref=e136]: From Zillow, Redfin, Craigslist, Apartments.com — anywhere. We extract and score everything.
+      - img [ref=e138]
+      - generic [ref=e140]:
+        - generic [ref=e141]: "3"
+        - heading "Decide with confidence" [level=3] [ref=e142]
+        - paragraph [ref=e143]: Scores, comparisons, neighborhood intel, and AI advice. You will know which place is right.
+  - paragraph [ref=e147]: "\"Built by a family actively searching for a rental in the Bay Area. We know the pain because we are living it.\""
+  - generic [ref=e149]:
+    - heading "Free. Seriously." [level=2] [ref=e150]
+    - paragraph [ref=e151]: No pricing tiers. No "premium" upsells. No credit card required. Renters have enough to pay for already.
+    - generic [ref=e152]:
+      - link "See Demo" [ref=e153] [cursor=pointer]:
+        - /url: /demo
+        - text: See Demo
+        - img [ref=e154]
+      - link "Sign In" [ref=e156] [cursor=pointer]:
+        - /url: /app
+        - text: Sign In
+        - img [ref=e157]
+  - contentinfo [ref=e159]:
+    - generic [ref=e160]:
+      - generic [ref=e161]:
+        - img [ref=e162]
+        - generic [ref=e164]: zubia
+      - paragraph [ref=e165]: Stop scrolling. Start deciding.
+      - paragraph [ref=e166]: Built with care in the Bay Area.

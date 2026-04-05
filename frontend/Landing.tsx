@@ -48,9 +48,10 @@ export default function Landing({ onNavigate }: LandingProps) {
             <Icons.Logo />
             <span>zubia</span>
           </div>
-          <button className="btn btn-primary" onClick={() => onNavigate("dashboard")}>
-            Open App
-          </button>
+          <div className="landing-nav-buttons">
+            <a href="/demo" className="btn btn-outline">See Demo</a>
+            <a href="/app" className="btn btn-primary">Sign In</a>
+          </div>
         </div>
       </header>
 
@@ -80,10 +81,10 @@ export default function Landing({ onNavigate }: LandingProps) {
             ) : (
               <p className="hero-email-success">You are in. We will reach out soon.</p>
             )}
-            <button className="btn btn-outline" onClick={() => onNavigate("dashboard")}>
-              Try the Demo
+            <a href="/demo" className="btn btn-outline">
+              See Demo
               <Icons.ArrowRight />
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -297,10 +298,16 @@ export default function Landing({ onNavigate }: LandingProps) {
           <p className="section-subtitle">
             No pricing tiers. No "premium" upsells. No credit card required. Renters have enough to pay for already.
           </p>
-          <button className="btn btn-primary btn-lg" onClick={() => onNavigate("dashboard")}>
-            Start Using Zubia
-            <Icons.ArrowRight />
-          </button>
+          <div className="pricing-actions">
+            <a href="/demo" className="btn btn-outline btn-lg">
+              See Demo
+              <Icons.ArrowRight />
+            </a>
+            <a href="/app" className="btn btn-primary btn-lg">
+              Sign In
+              <Icons.ArrowRight />
+            </a>
+          </div>
         </div>
       </section>
 

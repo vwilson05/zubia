@@ -1,7 +1,11 @@
 import { Database } from "bun:sqlite";
 import path from "path";
 
-const DB_PATH = path.join(import.meta.dir, "zubia.db");
+import fs from "fs";
+// Use /data volume on Railway for persistence, local dir for dev
+const DB_DIR = fs.existsSync("/data") ? "/data" : import.meta.dir;
+const DB_PATH = path.join(DB_DIR, "zubia.db");
+console.log(`[DB] Using database at: ${DB_PATH}`);
 
 const db = new Database(DB_PATH, { create: true });
 

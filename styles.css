@@ -2294,3 +2294,128 @@ a:hover { text-decoration: underline; }
   justify-content: center;
   padding: 60px 20px;
 }
+
+/* ===== Demo Mode ===== */
+
+.demo-banner {
+  background: #FFFBEB;
+  border-bottom: 1px solid #FDE68A;
+  padding: 10px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.demo-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 12px;
+}
+.demo-banner-text {
+  font-size: 0.875rem;
+  color: #92400E;
+  font-weight: 500;
+}
+.demo-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.demo-banner-dismiss {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #92400E;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.demo-banner-dismiss:hover {
+  background: rgba(146, 64, 14, 0.1);
+}
+
+.demo-badge {
+  display: inline-block;
+  background: #FDE68A;
+  color: #92400E;
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.demo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 9999;
+  box-shadow: var(--shadow-lg);
+  animation: demo-toast-in 0.25s ease;
+}
+@keyframes demo-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.demo-blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  text-align: center;
+}
+.demo-blocked p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.sidebar-login-btn {
+  width: 100%;
+}
+
+.login-demo-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.login-demo-link:hover {
+  text-decoration: underline;
+}
+
+.landing-nav-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pricing-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+}

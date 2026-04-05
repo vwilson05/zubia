@@ -44,6 +44,16 @@ function getSessionFromCookie(req: Request): any | null {
   return session;
 }
 
+function isDemoSession(req: Request): boolean {
+  const cookie = req.headers.get("cookie");
+  if (!cookie) return false;
+  return cookie.includes("zubia_demo=1");
+}
+
+function getDemoUser(): any | null {
+  return db.query("SELECT * FROM users WHERE id = 1").get() as any;
+}
+
 function getAuthenticatedUser(req: Request): any | null {
   const session = getSessionFromCookie(req);
   if (!session) return null;
@@ -59,6 +69,7 @@ function getUser(req?: Request): any {
   if (req) {
     const user = getAuthenticatedUser(req);
     if (user) return user;
+    if (isDemoSession(req)) return getDemoUser();
   }
   return db.query("SELECT * FROM users LIMIT 1").get() as any;
 }
@@ -203,8 +214,15 @@ const server = Bun.serve({
     // GET /auth/me — Current user
     if (pathname === "/auth/me" && method === "GET") {
       const user = getAuthenticatedUser(req);
-      if (!user) return errorResponse("Not authenticated", 401);
-      return jsonResponse({ id: user.id, name: user.name, email: user.email });
+      if (user) return jsonResponse({ id: user.id, name: user.name, email: user.email });
+
+      // Demo session: return demo user with demo flag
+      if (isDemoSession(req)) {
+        const demoUser = getDemoUser();
+        if (demoUser) return jsonResponse({ id: demoUser.id, name: demoUser.name, email: demoUser.email, demo: true });
+      }
+
+      return errorResponse("Not authenticated", 401);
     }
 
     // POST /auth/logout — Clear session
@@ -218,6 +236,17 @@ const server = Bun.serve({
         headers: {
           "Content-Type": "application/json",
           "Set-Cookie": setCookie("zubia_session", "", 0),
+        },
+      });
+    }
+
+    // GET /auth/demo — Start a demo session (read-only, user_id=1)
+    if (pathname === "/auth/demo" && method === "GET") {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: "/demo",
+          "Set-Cookie": setCookie("zubia_demo", "1", 24 * 60 * 60), // 24 hours
         },
       });
     }
@@ -242,8 +271,18 @@ const server = Bun.serve({
 
     // Auth middleware for all other /api/* routes
     if (pathname.startsWith("/api/")) {
+      const isDemo = isDemoSession(req);
       const user = getAuthenticatedUser(req);
-      if (!user) return errorResponse("Not authenticated", 401);
+
+      if (!user && !isDemo) return errorResponse("Not authenticated", 401);
+
+      // Demo sessions are read-only: block POST, PUT, DELETE (except advisor which is read-like)
+      if (isDemo && !user && method !== "GET") {
+        const allowedDemoPosts = ["/api/advisor", "/api/compare"];
+        if (!allowedDemoPosts.includes(pathname)) {
+          return jsonResponse({ error: "Sign in to save changes", demo: true }, 403);
+        }
+      }
     }
 
     // POST /api/listings/add — Paste URL, AI extracts + scores
@@ -964,7 +1003,9 @@ const server = Bun.serve({
     if (
       pathname === "/" ||
       pathname === "/app" ||
-      pathname.startsWith("/app/")
+      pathname.startsWith("/app/") ||
+      pathname === "/demo" ||
+      pathname.startsWith("/demo/")
     ) {
       // Rebuild in dev mode
       if (isDev) {
